@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultrasound Dual-Freq LaserTag</title>
+  <title>Ultrasound LaserTag 4-DIGIT</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: sans-serif; }
@@ -18,8 +18,8 @@
     .btn-fire-left {
       position: absolute; top: 15px; left: 15px;
       background: linear-gradient(135deg, #ff0044, #990022);
-      color: #fff; font-size: 20px; font-weight: bold;
-      padding: 20px 30px; border-radius: 16px;
+      color: #fff; font-size: 22px; font-weight: bold;
+      padding: 22px 35px; border-radius: 16px;
       border: 2px solid #fff; box-shadow: 0 0 20px rgba(255, 0, 68, 0.8);
       cursor: pointer;
     }
@@ -34,12 +34,19 @@
 
     .panel-bottom {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: rgba(20, 20, 30, 0.95); padding: 16px; border-radius: 16px;
+      background: rgba(20, 20, 30, 0.95); padding: 18px; border-radius: 16px;
       text-align: center; width: 90%; max-width: 340px; border: 1px solid #333;
     }
 
-    input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; text-align: center; font-size: 16px; background: #111; color: #fff; text-transform: uppercase; }
-    button.btn-connect { background: #00ff42; color: #000; font-weight: bold; padding: 12px; border: none; border-radius: 8px; width: 100%; font-size: 16px; cursor: pointer; }
+    input { 
+      width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: none; 
+      text-align: center; font-size: 22px; font-weight: bold; background: #111; color: #00ff42; 
+      letter-spacing: 4px;
+    }
+    button.btn-connect { 
+      background: #00ff42; color: #000; font-weight: bold; padding: 14px; border: none; 
+      border-radius: 10px; width: 100%; font-size: 18px; cursor: pointer; 
+    }
 
     #dead-screen {
       position: absolute; z-index: 100; width: 100%; height: 100%; background: #c80000;
@@ -55,10 +62,10 @@
     <div class="role-badge" id="role-info">РЕЖИМ: НЕ ПОДКЛЮЧЕНО</div>
 
     <div class="panel-bottom" id="setup-panel">
-      <div style="font-size: 14px; color: #aaa;">Твой ID: <b id="my-id" style="color:#00ff42; font-size: 18px;">...</b></div>
-      <input type="text" id="target-id" placeholder="ВВЕДИ ID БРАТА">
+      <div style="font-size: 14px; color: #aaa;">Твой код: <b id="my-id" style="color:#00ff42; font-size: 24px;">....</b></div>
+      <input type="number" id="target-id" placeholder="1234" pattern="[0-9]*" inputmode="numeric">
       <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
-      <div id="status" style="margin-top:8px; font-size:12px; color:#888;">Введи ID или жди подключения</div>
+      <div id="status" style="margin-top:8px; font-size:12px; color:#888;">Введи 4 цифры брата</div>
     </div>
   </div>
 
@@ -69,40 +76,38 @@
   </div>
 
   <script>
-    let peer = new Peer();
+    // Генерируем ровно 4 случайные цифры (от 1000 до 9999)
+    const myFourDigits = Math.floor(1000 + Math.random() * 9000).toString();
+    const peer = new Peer('lt-game-' + myFourDigits);
+
     let conn = null;
     let audioCtx = null;
     let analyser = null;
-    let isHost = false;
 
     let myTXFreq = 18000; 
     let myRXFreq = 19000;
     let isMutedSelf = false;
-    let hitCounter = 0; // Для отсечения одиночных ударов
+    let hitCounter = 0;
 
-    peer.on('open', id => { 
-      document.getElementById('my-id').innerText = id.slice(0, 5); 
-    });
+    document.getElementById('my-id').innerText = myFourDigits;
 
-    // Когда к нам подключаются (мы Host - Игрок 1)
+    // Когда к нам подключаются (мы Игрок 1)
     peer.on('connection', c => {
       conn = c;
-      isHost = true;
       myTXFreq = 18000;
       myRXFreq = 19000;
       updateRoleUI("ИГРОК 1 (18кГц)");
       setupConnection();
     });
 
-    // Когда мы подключаемся (мы Client - Игрок 2)
+    // Когда мы подключаемся к брату по 4 цифрам (мы Игрок 2)
     async function connectToBrother() {
-      await initAudio(); // Сначала точно запускаем звук!
-      const targetId = document.getElementById('target-id').value.trim();
-      if (!targetId) return alert('Введи ID!');
+      await initAudio();
+      const targetDigit = document.getElementById('target-id').value.trim();
+      if (!targetDigit || targetDigit.length !== 4) return alert('Введи ровно 4 цифры!');
       
       document.getElementById('status').innerText = 'Соединение...';
-      conn = peer.connect(targetId);
-      isHost = false;
+      conn = peer.connect('lt-game-' + targetDigit);
       myTXFreq = 19000;
       myRXFreq = 18000;
       updateRoleUI("ИГРОК 2 (19кГц)");
@@ -126,7 +131,7 @@
         if (data.type === 'HIT') die();
       });
 
-      conn.on('error', err => {
+      conn.on('error', () => {
         document.getElementById('status').innerText = '❌ Ошибка подключения';
         document.getElementById('status').style.color = '#ff0044';
       });
@@ -156,7 +161,7 @@
       }
     }
 
-    // Слушаем ультразвук с защиты от ударов об пол
+    // Слушаем ультразвук с защитой от ударов
     function listenUltrasound() {
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
@@ -165,7 +170,6 @@
         if (!isMutedSelf && analyser) {
           analyser.getByteFrequencyData(dataArray);
           
-          // Вычисляем индекс ультразвука
           const targetIndex = Math.round((myRXFreq / (audioCtx.sampleRate / 2)) * bufferLength);
           
           const val1 = dataArray[targetIndex - 1] || 0;
@@ -173,13 +177,10 @@
           const val3 = dataArray[targetIndex + 1] || 0;
           const maxSignal = Math.max(val1, val2, val3);
 
-          // ПРОВЕРКА НА УДАР ОБ ПОЛ (Низкие частоты 100-300Гц)
           const lowFreqSum = dataArray[2] + dataArray[3] + dataArray[4]; 
 
-          // Условие: ультразвук громкий (>90), но при этом НЕТ сильного низкочастотного грохота от удара (<200)
-          if (maxSignal > 90 && lowFreqSum < 200) {
+          if (maxSignal > 85 && lowFreqSum < 200) {
             hitCounter++;
-            // Требуется подтверждение 2 кадра подряд, чтобы отсечь короткий щелчок/стук
             if (hitCounter >= 2) {
               hitCounter = 0;
               if (conn && conn.open) {
@@ -188,7 +189,7 @@
               die();
             }
           } else {
-            hitCounter = 0; // Сбрасываем счетчик, если сигнал пропал
+            hitCounter = 0;
           }
         }
         requestAnimationFrame(check);
