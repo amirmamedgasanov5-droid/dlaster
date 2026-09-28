@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultrasound LaserTag 4-DIGIT</title>
+  <title>Ultrasound LaserTag Duel</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: sans-serif; }
@@ -48,11 +48,16 @@
       border-radius: 10px; width: 100%; font-size: 18px; cursor: pointer; 
     }
 
-    #dead-screen {
-      position: absolute; z-index: 100; width: 100%; height: 100%; background: #c80000;
+    .game-screen {
+      position: absolute; z-index: 100; width: 100%; height: 100%;
       display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+      padding: 20px;
     }
-    #dead-screen h1 { font-size: 46px; text-shadow: 0 0 10px #000; }
+    #dead-screen { background: #c80000; }
+    #win-screen { background: #008822; }
+    .game-screen h1 { font-size: 42px; text-shadow: 0 0 10px #000; }
+    .game-screen p { margin-top: 10px; font-size: 18px; }
+    .btn-respawn { margin-top:30px; padding: 14px 32px; background:#fff; color:#000; font-size: 18px; font-weight:bold; border-radius:10px; border:none; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -69,14 +74,21 @@
     </div>
   </div>
 
-  <div id="dead-screen">
+  <!-- Экран Поражения -->
+  <div id="dead-screen" class="game-screen">
     <h1>ТЫ УБИТ! ☠️</h1>
-    <p style="margin-top: 10px; font-size: 18px;">Тебя накрыл ультразвук брата</p>
-    <button onclick="respawn()" style="margin-top:30px; padding: 14px 32px; background:#fff; color:#000; font-size: 18px; font-weight:bold; border-radius:10px; border:none;">ВОЗРОДИТЬСЯ</button>
+    <p>Брат оказался быстрее и попал в тебя!</p>
+    <button class="btn-respawn" onclick="respawn()">СЛЕДУЮЩИЙ РАУНД</button>
+  </div>
+
+  <!-- Экран Победы -->
+  <div id="win-screen" class="game-screen">
+    <h1>ТЫ ПОБЕДИЛ! 🏆</h1>
+    <p>Отличный выстрел! Ты накрыл брата первым!</p>
+    <button class="btn-respawn" onclick="respawn()">СЛЕДУЮЩИЙ РАУНД</button>
   </div>
 
   <script>
-    // Генерируем ровно 4 случайные цифры (от 1000 до 9999)
     const myFourDigits = Math.floor(1000 + Math.random() * 9000).toString();
     const peer = new Peer('lt-game-' + myFourDigits);
 
@@ -87,11 +99,11 @@
     let myTXFreq = 18000; 
     let myRXFreq = 19000;
     let isMutedSelf = false;
+    let isRoundOver = false;
     let hitCounter = 0;
 
     document.getElementById('my-id').innerText = myFourDigits;
 
-    // Когда к нам подключаются (мы Игрок 1)
     peer.on('connection', c => {
       conn = c;
       myTXFreq = 18000;
@@ -100,7 +112,6 @@
       setupConnection();
     });
 
-    // Когда мы подключаемся к брату по 4 цифрам (мы Игрок 2)
     async function connectToBrother() {
       await initAudio();
       const targetDigit = document.getElementById('target-id').value.trim();
@@ -128,7 +139,14 @@
       });
 
       conn.on('data', data => {
-        if (data.type === 'HIT') die();
+        if (data.type === 'I_DIED') {
+          // Брат сообщил, что мы его убили
+          if (!isRoundOver) {
+            win();
+          }
+        } else if (data.type === 'RESET') {
+          hideScreens();
+        }
       });
 
       conn.on('error', () => {
@@ -137,7 +155,6 @@
       });
     }
 
-    // Инициализация микрофона
     async function initAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -161,13 +178,12 @@
       }
     }
 
-    // Слушаем ультразвук с защитой от ударов
     function listenUltrasound() {
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
       function check() {
-        if (!isMutedSelf && analyser) {
+        if (!isMutedSelf && !isRoundOver && analyser) {
           analyser.getByteFrequencyData(dataArray);
           
           const targetIndex = Math.round((myRXFreq / (audioCtx.sampleRate / 2)) * bufferLength);
@@ -183,9 +199,7 @@
             hitCounter++;
             if (hitCounter >= 2) {
               hitCounter = 0;
-              if (conn && conn.open) {
-                conn.send({ type: 'HIT' });
-              }
+              // Мы улавливаем выстрел брата -> МЫ УМИРАЕМ ПЕРВЫМИ
               die();
             }
           } else {
@@ -197,8 +211,8 @@
       check();
     }
 
-    // Выстрел
     async function shoot() {
+      if (isRoundOver) return;
       await initAudio();
       
       isMutedSelf = true;
@@ -226,13 +240,39 @@
     }
 
     function die() {
+      if (isRoundOver) return;
+      isRoundOver = true;
+
+      // Уведомляем брата, что он попал и победил
+      if (conn && conn.open) {
+        conn.send({ type: 'I_DIED' });
+      }
+
       if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]);
       playExplosionSound();
       document.getElementById('dead-screen').style.display = 'flex';
     }
 
+    function win() {
+      if (isRoundOver) return;
+      isRoundOver = true;
+
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+      playWinSound();
+      document.getElementById('win-screen').style.display = 'flex';
+    }
+
     function respawn() {
+      hideScreens();
+      if (conn && conn.open) {
+        conn.send({ type: 'RESET' });
+      }
+    }
+
+    function hideScreens() {
+      isRoundOver = false;
       document.getElementById('dead-screen').style.display = 'none';
+      document.getElementById('win-screen').style.display = 'none';
     }
 
     function playShotSound() {
@@ -264,6 +304,22 @@
         gain.connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.4);
+      } catch(e) {}
+    }
+
+    function playWinSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
       } catch(e) {}
     }
   </script>
