@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultrasound LaserTag Duel</title>
+  <title>Ultrasound LaserTag (Cross-Platform)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: sans-serif; }
@@ -74,23 +74,33 @@
     </div>
   </div>
 
-  <!-- Экран Поражения -->
   <div id="dead-screen" class="game-screen">
     <h1>ТЫ УБИТ! ☠️</h1>
-    <p>Брат оказался быстрее и попал в тебя!</p>
+    <p>Брат оказался быстрее!</p>
     <button class="btn-respawn" onclick="respawn()">СЛЕДУЮЩИЙ РАУНД</button>
   </div>
 
-  <!-- Экран Победы -->
   <div id="win-screen" class="game-screen">
     <h1>ТЫ ПОБЕДИЛ! 🏆</h1>
-    <p>Отличный выстрел! Ты накрыл брата первым!</p>
+    <p>Отличный выстрел!</p>
     <button class="btn-respawn" onclick="respawn()">СЛЕДУЮЩИЙ РАУНД</button>
   </div>
 
   <script>
     const myFourDigits = Math.floor(1000 + Math.random() * 9000).toString();
-    const peer = new Peer('lt-game-' + myFourDigits);
+    
+    // Настройки PeerJS с использованием STUN-серверов Google для обхода блокировок iOS/Android
+    const peerConfig = {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      }
+    };
+
+    const peer = new Peer('lt-game-' + myFourDigits, peerConfig);
 
     let conn = null;
     let audioCtx = null;
@@ -103,6 +113,10 @@
     let hitCounter = 0;
 
     document.getElementById('my-id').innerText = myFourDigits;
+
+    peer.on('open', id => {
+      document.getElementById('status').innerText = 'Готов к подключению';
+    });
 
     peer.on('connection', c => {
       conn = c;
@@ -117,8 +131,10 @@
       const targetDigit = document.getElementById('target-id').value.trim();
       if (!targetDigit || targetDigit.length !== 4) return alert('Введи ровно 4 цифры!');
       
-      document.getElementById('status').innerText = 'Соединение...';
-      conn = peer.connect('lt-game-' + targetDigit);
+      document.getElementById('status').innerText = 'Поиск устройства...';
+      
+      // Создаем подключение со строгими сетевыми параметрами
+      conn = peer.connect('lt-game-' + targetDigit, { reliable: true });
       myTXFreq = 19000;
       myRXFreq = 18000;
       updateRoleUI("ИГРОК 2 (19кГц)");
@@ -133,24 +149,26 @@
       if (!conn) return;
 
       conn.on('open', () => {
-        document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО К БРАТУ!';
+        document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО!';
         document.getElementById('status').style.color = '#00ff42';
         initAudio();
       });
 
       conn.on('data', data => {
         if (data.type === 'I_DIED') {
-          // Брат сообщил, что мы его убили
-          if (!isRoundOver) {
-            win();
-          }
+          if (!isRoundOver) win();
         } else if (data.type === 'RESET') {
           hideScreens();
         }
       });
 
+      conn.on('close', () => {
+        document.getElementById('status').innerText = '❌ Связь потеряна';
+        document.getElementById('status').style.color = '#ff0044';
+      });
+
       conn.on('error', () => {
-        document.getElementById('status').innerText = '❌ Ошибка подключения';
+        document.getElementById('status').innerText = '❌ Ошибка сети';
         document.getElementById('status').style.color = '#ff0044';
       });
     }
@@ -199,7 +217,6 @@
             hitCounter++;
             if (hitCounter >= 2) {
               hitCounter = 0;
-              // Мы улавливаем выстрел брата -> МЫ УМИРАЕМ ПЕРВЫМИ
               die();
             }
           } else {
@@ -243,7 +260,6 @@
       if (isRoundOver) return;
       isRoundOver = true;
 
-      // Уведомляем брата, что он попал и победил
       if (conn && conn.open) {
         conn.send({ type: 'I_DIED' });
       }
