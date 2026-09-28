@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultrasound LaserTag</title>
+  <title>Ultrasound Dual-Freq LaserTag</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: sans-serif; }
@@ -15,13 +15,6 @@
       padding: 20px; background: radial-gradient(circle at center, #151520 0%, #050508 100%);
     }
 
-    .aim-indicator {
-      position: absolute; top: 15px; right: 15px;
-      font-size: 11px; color: #00ff42; letter-spacing: 1px;
-      border: 1px solid #00ff42; padding: 6px 10px; border-radius: 6px;
-      background: rgba(0,255,66,0.1); font-weight: bold;
-    }
-
     .btn-fire-left {
       position: absolute; top: 15px; left: 15px;
       background: linear-gradient(135deg, #ff0044, #990022);
@@ -31,6 +24,13 @@
       cursor: pointer;
     }
     .btn-fire-left:active { transform: scale(0.92); background: #ff3366; }
+
+    .role-badge {
+      position: absolute; top: 15px; right: 15px;
+      font-size: 11px; color: #00ff42; letter-spacing: 1px;
+      border: 1px solid #00ff42; padding: 6px 10px; border-radius: 6px;
+      background: rgba(0,255,66,0.1); font-weight: bold; text-align: right;
+    }
 
     .panel-bottom {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -52,19 +52,19 @@
 
   <div class="gun-interface">
     <button class="btn-fire-left" onclick="shoot()">💥 ОГОНЬ</button>
-    <div class="aim-indicator">🔊 УЛЬТРАЗВУК АКТИВЕН</div>
+    <div class="role-badge" id="role-info">РЕЖИМ: НЕ ПОДКЛЮЧЕНО</div>
 
     <div class="panel-bottom" id="setup-panel">
       <div style="font-size: 14px; color: #aaa;">Твой ID: <b id="my-id" style="color:#00ff42; font-size: 18px;">...</b></div>
       <input type="text" id="target-id" placeholder="ВВЕДИ ID БРАТА">
       <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
-      <div id="status" style="margin-top:8px; font-size:12px; color:#888;">Нажми «Подключиться» для старта</div>
+      <div id="status" style="margin-top:8px; font-size:12px; color:#888;">Введи ID или жди подключения</div>
     </div>
   </div>
 
   <div id="dead-screen">
     <h1>ТЫ УБИТ! ☠️</h1>
-    <p style="margin-top: 10px; font-size: 18px;">Тебя накрыло ультразвуком</p>
+    <p style="margin-top: 10px; font-size: 18px;">Тебя накрыл ультразвук брата</p>
     <button onclick="respawn()" style="margin-top:30px; padding: 14px 32px; background:#fff; color:#000; font-size: 18px; font-weight:bold; border-radius:10px; border:none;">ВОЗРОДИТЬСЯ</button>
   </div>
 
@@ -72,29 +72,53 @@
     let peer = new Peer();
     let conn = null;
     let audioCtx = null;
-    let micStream = null;
     let analyser = null;
-    const US_FREQ = 19500; // Частота ультразвука (19.5 кГц)
+    let isHost = false;
 
-    peer.on('open', id => { document.getElementById('my-id').innerText = id.slice(0, 5); });
+    // Частоты:
+    // Игрок 1 (Host): Стреляет 18000 Гц, Слушает 19000 Гц
+    // Игрок 2 (Client): Стреляет 19000 Гц, Слушает 18000 Гц
+    let myTXFreq = 18000; 
+    let myRXFreq = 19000;
+    let isMutedSelf = false;
 
+    peer.on('open', id => { 
+      document.getElementById('my-id').innerText = id.slice(0, 5); 
+    });
+
+    // Когда к нам подключаются (мы Host)
     peer.on('connection', c => {
       conn = c;
+      isHost = true;
+      myTXFreq = 18000;
+      myRXFreq = 19000;
+      updateRoleUI("ИГРОК 1 (18кГц)");
       setupConnection();
     });
 
+    // Когда мы подключаемся (мы Client)
     function connectToBrother() {
       initAudio();
       const targetId = document.getElementById('target-id').value.trim();
       if (!targetId) return alert('Введи ID!');
+      
       conn = peer.connect(targetId);
+      isHost = false;
+      myTXFreq = 19000;
+      myRXFreq = 18000;
+      updateRoleUI("ИГРОК 2 (19кГц)");
       setupConnection();
+    }
+
+    function updateRoleUI(text) {
+      document.getElementById('role-info').innerText = "РЕЖИМ: " + text;
     }
 
     function setupConnection() {
       conn.on('open', () => {
         document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО К БРАТУ!';
         document.getElementById('status').style.color = '#00ff42';
+        initAudio();
       });
 
       conn.on('data', data => {
@@ -102,72 +126,82 @@
       });
     }
 
-    // Инициализация микрофона и анализатора ультразвука
+    // Микрофон
     async function initAudio() {
       if (audioCtx) return;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
       try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        const source = audioCtx.createMediaStreamSource(micStream);
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+        const source = audioCtx.createMediaStreamSource(stream);
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 2048;
         source.connect(analyser);
 
-        // Постоянно слушаем микрофон на предмет ультразвука
         listenUltrasound();
       } catch (err) {
-        alert('Нужен доступ к микрофону для считывания ультразвука!');
+        alert('Разреши доступ к микрофону!');
       }
     }
 
-    // Прослушивание частоты 19.5 кГц
+    // Слушаем ТОЛЬКО частоту врага
     function listenUltrasound() {
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
       function check() {
-        analyser.getByteFrequencyData(dataArray);
-        
-        // Переводим 19.5 кГц в индекс массива FFT
-        const index = Math.round((US_FREQ / (audioCtx.sampleRate / 2)) * bufferLength);
-        const signalStrength = dataArray[index];
+        if (!isMutedSelf && analyser) {
+          analyser.getByteFrequencyData(dataArray);
+          
+          // Рассчитываем индекс нужной частоты врага
+          const targetIndex = Math.round((myRXFreq / (audioCtx.sampleRate / 2)) * bufferLength);
+          
+          // Проверяем соседние бины для надежности (±1 бин)
+          const val1 = dataArray[targetIndex - 1] || 0;
+          const val2 = dataArray[targetIndex] || 0;
+          const val3 = dataArray[targetIndex + 1] || 0;
+          const maxSignal = Math.max(val1, val2, val3);
 
-        // Если прилетел мощный ультразвуковой импульс (> 140)
-        if (signalStrength > 140) {
-          if (conn && conn.open) {
-            conn.send({ type: 'HIT' });
+          // Если прилетел вражеский импульс громче порога (80)
+          if (maxSignal > 80) {
+            if (conn && conn.open) {
+              conn.send({ type: 'HIT' });
+            }
+            die();
           }
-          die();
         }
         requestAnimationFrame(check);
       }
       check();
     }
 
-    // Выстрел ультразвуковым импульсом
+    // ВЫСТРЕЛ
     function shoot() {
       if (!audioCtx) initAudio();
       
+      // Включаем временную задержку, чтобы свой микрофон вообще не слушал
+      isMutedSelf = true;
+      setTimeout(() => { isMutedSelf = false; }, 400);
+
       playShotSound();
       if (navigator.vibrate) navigator.vibrate(80);
 
-      // Генерация не слышимого ухом ультразвукового сигнала (19.5 кГц)
+      // Излучаем УЛЬТРАЗВУК
       try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(US_FREQ, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(myTXFreq, audioCtx.currentTime);
 
-        gain.gain.setValueAtTime(1.0, audioCtx.currentTime); // Максимальная мощность
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
+        osc.stop(audioCtx.currentTime + 0.25);
       } catch(e) {}
     }
 
@@ -181,22 +215,17 @@
       document.getElementById('dead-screen').style.display = 'none';
     }
 
-    // Звуковой эффект выстрела (для игрока)
     function playShotSound() {
       try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(800, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.1);
-
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-
         osc.start();
         osc.stop(audioCtx.currentTime + 0.1);
       } catch(e) {}
@@ -206,17 +235,13 @@
       try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-
         osc.type = 'square';
         osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.4);
-
+        osc.frequency.exponentialRampToValueAtTime(25, audioCtx.currentTime + 0.4);
         gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-
         osc.start();
         osc.stop(audioCtx.currentTime + 0.4);
       } catch(e) {}
