@@ -75,18 +75,16 @@
     let analyser = null;
     let isHost = false;
 
-    // Частоты:
-    // Игрок 1 (Host): Стреляет 18000 Гц, Слушает 19000 Гц
-    // Игрок 2 (Client): Стреляет 19000 Гц, Слушает 18000 Гц
     let myTXFreq = 18000; 
     let myRXFreq = 19000;
     let isMutedSelf = false;
+    let hitCounter = 0; // Для отсечения одиночных ударов
 
     peer.on('open', id => { 
       document.getElementById('my-id').innerText = id.slice(0, 5); 
     });
 
-    // Когда к нам подключаются (мы Host)
+    // Когда к нам подключаются (мы Host - Игрок 1)
     peer.on('connection', c => {
       conn = c;
       isHost = true;
@@ -96,12 +94,13 @@
       setupConnection();
     });
 
-    // Когда мы подключаемся (мы Client)
-    function connectToBrother() {
-      initAudio();
+    // Когда мы подключаемся (мы Client - Игрок 2)
+    async function connectToBrother() {
+      await initAudio(); // Сначала точно запускаем звук!
       const targetId = document.getElementById('target-id').value.trim();
       if (!targetId) return alert('Введи ID!');
       
+      document.getElementById('status').innerText = 'Соединение...';
       conn = peer.connect(targetId);
       isHost = false;
       myTXFreq = 19000;
@@ -115,6 +114,8 @@
     }
 
     function setupConnection() {
+      if (!conn) return;
+
       conn.on('open', () => {
         document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО К БРАТУ!';
         document.getElementById('status').style.color = '#00ff42';
@@ -124,27 +125,38 @@
       conn.on('data', data => {
         if (data.type === 'HIT') die();
       });
+
+      conn.on('error', err => {
+        document.getElementById('status').innerText = '❌ Ошибка подключения';
+        document.getElementById('status').style.color = '#ff0044';
+      });
     }
 
-    // Микрофон
+    // Инициализация микрофона
     async function initAudio() {
-      if (audioCtx) return;
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
-        const source = audioCtx.createMediaStreamSource(stream);
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 2048;
-        source.connect(analyser);
+      if (!analyser) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+          const source = audioCtx.createMediaStreamSource(stream);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 2048;
+          source.connect(analyser);
 
-        listenUltrasound();
-      } catch (err) {
-        alert('Разреши доступ к микрофону!');
+          listenUltrasound();
+        } catch (err) {
+          console.error(err);
+        }
       }
     }
 
-    // Слушаем ТОЛЬКО частоту врага
+    // Слушаем ультразвук с защиты от ударов об пол
     function listenUltrasound() {
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
@@ -153,21 +165,30 @@
         if (!isMutedSelf && analyser) {
           analyser.getByteFrequencyData(dataArray);
           
-          // Рассчитываем индекс нужной частоты врага
+          // Вычисляем индекс ультразвука
           const targetIndex = Math.round((myRXFreq / (audioCtx.sampleRate / 2)) * bufferLength);
           
-          // Проверяем соседние бины для надежности (±1 бин)
           const val1 = dataArray[targetIndex - 1] || 0;
           const val2 = dataArray[targetIndex] || 0;
           const val3 = dataArray[targetIndex + 1] || 0;
           const maxSignal = Math.max(val1, val2, val3);
 
-          // Если прилетел вражеский импульс громче порога (80)
-          if (maxSignal > 80) {
-            if (conn && conn.open) {
-              conn.send({ type: 'HIT' });
+          // ПРОВЕРКА НА УДАР ОБ ПОЛ (Низкие частоты 100-300Гц)
+          const lowFreqSum = dataArray[2] + dataArray[3] + dataArray[4]; 
+
+          // Условие: ультразвук громкий (>90), но при этом НЕТ сильного низкочастотного грохота от удара (<200)
+          if (maxSignal > 90 && lowFreqSum < 200) {
+            hitCounter++;
+            // Требуется подтверждение 2 кадра подряд, чтобы отсечь короткий щелчок/стук
+            if (hitCounter >= 2) {
+              hitCounter = 0;
+              if (conn && conn.open) {
+                conn.send({ type: 'HIT' });
+              }
+              die();
             }
-            die();
+          } else {
+            hitCounter = 0; // Сбрасываем счетчик, если сигнал пропал
           }
         }
         requestAnimationFrame(check);
@@ -175,18 +196,16 @@
       check();
     }
 
-    // ВЫСТРЕЛ
-    function shoot() {
-      if (!audioCtx) initAudio();
+    // Выстрел
+    async function shoot() {
+      await initAudio();
       
-      // Включаем временную задержку, чтобы свой микрофон вообще не слушал
       isMutedSelf = true;
       setTimeout(() => { isMutedSelf = false; }, 400);
 
       playShotSound();
       if (navigator.vibrate) navigator.vibrate(80);
 
-      // Излучаем УЛЬТРАЗВУК
       try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
