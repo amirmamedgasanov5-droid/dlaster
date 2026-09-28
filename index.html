@@ -3,432 +3,174 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>LaserTag Duels - P2P Gun</title>
+  <title>Ultrasound LaserTag</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-      -webkit-user-select: none;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    body, html {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #08080c;
-      color: #fff;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #08080c; color: #fff; }
 
-    /* Главный интерфейс */
     .gun-interface {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 15px;
-      background: radial-gradient(circle at center, #141520 0%, #050508 100%);
+      position: absolute; width: 100%; height: 100%;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 20px; background: radial-gradient(circle at center, #151520 0%, #050508 100%);
     }
 
-    /* КНОПКА «ОГОНЬ» — ЛЕВЫЙ ВЕРХНИЙ КРАЙ */
-    .btn-fire-left {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      z-index: 20;
-      background: linear-gradient(135deg, #ff0044, #990022);
-      color: #fff;
-      font-size: 18px;
-      font-weight: 800;
-      padding: 18px 28px;
-      border-radius: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.8);
-      box-shadow: 0 0 20px rgba(255, 0, 68, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.2);
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-    .btn-fire-left:active {
-      transform: scale(0.93);
-      background: #ff2255;
-      box-shadow: 0 0 30px rgba(255, 0, 68, 0.9);
-    }
-
-    /* ИНДИКАТОР ПРИЦЕЛА — ПРАВЫЙ ВЕРХНИЙ УГОЛ */
     .aim-indicator {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      z-index: 20;
-      font-size: 11px;
-      font-weight: 700;
-      color: #00ff66;
-      letter-spacing: 1px;
-      border: 1px solid rgba(0, 255, 102, 0.4);
-      padding: 8px 12px;
-      border-radius: 8px;
-      background: rgba(0, 255, 102, 0.08);
-      box-shadow: 0 0 10px rgba(0, 255, 102, 0.15);
-      backdrop-filter: blur(4px);
+      position: absolute; top: 15px; right: 15px;
+      font-size: 11px; color: #00ff42; letter-spacing: 1px;
+      border: 1px solid #00ff42; padding: 6px 10px; border-radius: 6px;
+      background: rgba(0,255,66,0.1); font-weight: bold;
     }
 
-    /* ЦЕНТРАЛЬНЫЙ СТАТУС ДАТЧИКОВ И ИГРЫ */
-    .center-info {
-      position: absolute;
-      top: 40%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      width: 85%;
-      pointer-events: none;
-    }
-    .angle-display {
-      font-size: 38px;
-      font-weight: 900;
-      color: #00ff66;
-      text-shadow: 0 0 15px rgba(0, 255, 102, 0.4);
-      font-family: monospace;
-    }
-    .angle-label {
-      font-size: 11px;
-      color: #777;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-top: 4px;
-    }
-
-    /* ПАНЕЛЬ ПОДКЛЮЧЕНИЯ — СНИЗУ */
-    .panel-bottom {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(18, 19, 28, 0.95);
-      padding: 16px;
-      border-radius: 18px;
-      text-align: center;
-      width: 92%;
-      max-width: 360px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(10px);
-      z-index: 20;
-    }
-    .my-id-box {
-      font-size: 13px;
-      color: #aaa;
-      margin-bottom: 8px;
-    }
-    .my-id-value {
-      color: #00ff66;
-      font-size: 20px;
-      font-weight: bold;
-      letter-spacing: 2px;
-      font-family: monospace;
-    }
-    input.input-id {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border-radius: 10px;
-      border: 1px solid #333;
-      text-align: center;
-      font-size: 16px;
-      background: #0d0e14;
-      color: #fff;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      outline: none;
-    }
-    input.input-id:focus {
-      border-color: #00ff66;
-    }
-    button.btn-action {
-      background: #00ff66;
-      color: #000;
-      font-weight: 800;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      width: 100%;
-      font-size: 15px;
+    .btn-fire-left {
+      position: absolute; top: 15px; left: 15px;
+      background: linear-gradient(135deg, #ff0044, #990022);
+      color: #fff; font-size: 20px; font-weight: bold;
+      padding: 20px 30px; border-radius: 16px;
+      border: 2px solid #fff; box-shadow: 0 0 20px rgba(255, 0, 68, 0.8);
       cursor: pointer;
-      margin-top: 4px;
-      transition: all 0.2s;
     }
-    button.btn-action:active {
-      transform: scale(0.97);
-      background: #00cc52;
+    .btn-fire-left:active { transform: scale(0.92); background: #ff3366; }
+
+    .panel-bottom {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(20, 20, 30, 0.95); padding: 16px; border-radius: 16px;
+      text-align: center; width: 90%; max-width: 340px; border: 1px solid #333;
     }
 
-    .status-text {
-      margin-top: 10px;
-      font-size: 12px;
-      color: #ffcc00;
-      font-weight: 600;
-      min-height: 16px;
-    }
+    input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; text-align: center; font-size: 16px; background: #111; color: #fff; text-transform: uppercase; }
+    button.btn-connect { background: #00ff42; color: #000; font-weight: bold; padding: 12px; border: none; border-radius: 8px; width: 100%; font-size: 16px; cursor: pointer; }
 
-    /* ЭКРАН ПОРАЖЕНИЯ (GAME OVER) */
     #dead-screen {
-      position: absolute;
-      top: 0; left: 0;
-      z-index: 100;
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(circle at center, #cc0033 0%, #660011 100%);
-      display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      padding: 20px;
+      position: absolute; z-index: 100; width: 100%; height: 100%; background: #c80000;
+      display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center;
     }
-    #dead-screen h1 {
-      font-size: 52px;
-      font-weight: 900;
-      text-shadow: 0 0 20px #000;
-      letter-spacing: 2px;
-    }
-    #dead-screen p {
-      margin-top: 10px;
-      font-size: 16px;
-      opacity: 0.9;
-    }
-
-    /* Модалка первой активации датчиков */
-    #sensor-modal {
-      position: absolute;
-      top: 0; left: 0;
-      z-index: 200;
-      width: 100%;
-      height: 100%;
-      background: rgba(5, 5, 8, 0.95);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 25px;
-      text-align: center;
-    }
+    #dead-screen h1 { font-size: 46px; text-shadow: 0 0 10px #000; }
   </style>
 </head>
 <body>
 
-  <!-- Оверлей активации датчиков и звука -->
-  <div id="sensor-modal">
-    <h2 style="font-size: 26px; color: #00ff66; margin-bottom: 12px;">ГОТОВ К БОЮ?</h2>
-    <p style="font-size: 14px; color: #ccc; margin-bottom: 25px; line-height: 1.5;">
-      Нажмите кнопку ниже, чтобы включить датчики гироскопа и звук для игры.
-    </p>
-    <button class="btn-action" style="padding: 16px; font-size: 18px;" onclick="initSensorsAndAudio()">АКТИВИРОВАТЬ ИГРУ 🎯</button>
-  </div>
-
   <div class="gun-interface">
-    <!-- Кнопка «ОГОНЬ» слева вверху -->
     <button class="btn-fire-left" onclick="shoot()">💥 ОГОНЬ</button>
+    <div class="aim-indicator">🔊 УЛЬТРАЗВУК АКТИВЕН</div>
 
-    <!-- Прицел справа вверху -->
-    <div class="aim-indicator">▲ ПРИЦЕЛ (ТОРЕЦ)</div>
-
-    <!-- Показатели гироскопа по центру -->
-    <div class="center-info">
-      <div class="angle-display" id="angle-val">0°</div>
-      <div class="angle-label">Угол прицела (Компас)</div>
-    </div>
-
-    <!-- Панель подключения снизу -->
-    <div class="panel-bottom">
-      <div class="my-id-box">Твой ID: <span class="my-id-value" id="my-id">...</span></div>
-      <input type="text" class="input-id" id="target-id" placeholder="Введи ID брата" maxlength="5">
-      <button class="btn-action" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
-      <div class="status-text" id="status">Инициализация сети...</div>
+    <div class="panel-bottom" id="setup-panel">
+      <div style="font-size: 14px; color: #aaa;">Твой ID: <b id="my-id" style="color:#00ff42; font-size: 18px;">...</b></div>
+      <input type="text" id="target-id" placeholder="ВВЕДИ ID БРАТА">
+      <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
+      <div id="status" style="margin-top:8px; font-size:12px; color:#888;">Нажми «Подключиться» для старта</div>
     </div>
   </div>
 
-  <!-- Экран блокировки при смерти -->
   <div id="dead-screen">
     <h1>ТЫ УБИТ! ☠️</h1>
-    <p>Жди, пока брат запустит новый раунд</p>
-    <button onclick="respawn()" style="margin-top: 35px; padding: 16px 36px; background: #fff; color: #000; font-size: 18px; font-weight: 900; border-radius: 12px; border: none; cursor: pointer;">
-      ВОЗРОДИТЬСЯ 🔄
-    </button>
+    <p style="margin-top: 10px; font-size: 18px;">Тебя накрыло ультразвуком</p>
+    <button onclick="respawn()" style="margin-top:30px; padding: 14px 32px; background:#fff; color:#000; font-size: 18px; font-weight:bold; border-radius:10px; border:none;">ВОЗРОДИТЬСЯ</button>
   </div>
 
   <script>
-    let peer = null;
+    let peer = new Peer();
     let conn = null;
-    let myAngle = 0;
     let audioCtx = null;
+    let micStream = null;
+    let analyser = null;
+    const US_FREQ = 19500; // Частота ультразвука (19.5 кГц)
 
-    // 1. Активация датчиков и аудиоконтекста по клику
-    function initSensorsAndAudio() {
-      // Инициализация Web Audio API
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      } catch (e) {
-        console.error("Audio API error:", e);
-      }
+    peer.on('open', id => { document.getElementById('my-id').innerText = id.slice(0, 5); });
 
-      // Запрос прав на DeviceOrientation (нужно для iOS 13+)
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-          .then(permissionState => {
-            if (permissionState === 'granted') {
-              window.addEventListener('deviceorientation', handleOrientation);
-            } else {
-              alert('Доступ к гироскопу отклонен! Игра не сможет определять прицел.');
-            }
-          })
-          .catch(console.error);
-      } else {
-        // Для Android и старых iOS
-        window.addEventListener('deviceorientation', handleOrientation);
-      }
+    peer.on('connection', c => {
+      conn = c;
+      setupConnection();
+    });
 
-      // Скрываем модалку
-      document.getElementById('sensor-modal').style.display = 'none';
-      
-      // Запускаем инициализацию P2P Сети
-      initPeer();
-    }
-
-    function handleOrientation(event) {
-      // Использование alpha (компас) или gamma в зависимости от поворота
-      let angle = event.alpha || event.gamma || 0;
-      myAngle = Math.round(angle);
-      document.getElementById('angle-val').innerText = myAngle + '°';
-    }
-
-    // 2. Генерируем читаемый короткий ID (5 символов)
-    function generateShortId() {
-      const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-      let result = '';
-      for (let i = 0; i < 5; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return result;
-    }
-
-    // 3. Стабильная инициализация PeerJS
-    function initPeer() {
-      const customId = generateShortId();
-      updateStatus('Подключение к серверу...', '#ffcc00');
-
-      // Используем надежные публичные STUN серверы
-      peer = new Peer(customId, {
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
-          ]
-        },
-        debug: 1
-      });
-
-      peer.on('open', id => {
-        document.getElementById('my-id').innerText = id;
-        updateStatus('Готов к подключению', '#00ff66');
-      });
-
-      peer.on('connection', c => {
-        conn = c;
-        setupConnection();
-      });
-
-      peer.on('error', err => {
-        console.error('PeerJS Error:', err);
-        if (err.type === 'unavailable-id') {
-          initPeer(); // Пересоздаем при совпадении ID
-        } else {
-          updateStatus('❌ Ошибка сети: ' + err.type, '#ff3344');
-        }
-      });
-
-      peer.on('disconnected', () => {
-        updateStatus('Соединение потеряно. Переподключение...', '#ffcc00');
-        peer.reconnect();
-      });
-    }
-
-    // 4. Подключение к сопернику
     function connectToBrother() {
-      const targetInput = document.getElementById('target-id');
-      const targetId = targetInput.value.trim().toUpperCase();
-      
-      if (!targetId) {
-        alert('Введи ID брата!');
-        return;
-      }
-
-      if (targetId === document.getElementById('my-id').innerText) {
-        alert('Нельзя подключиться к самому себе!');
-        return;
-      }
-
-      updateStatus('Соединяем с ' + targetId + '...', '#ffcc00');
-      conn = peer.connect(targetId, { reliable: true });
+      initAudio();
+      const targetId = document.getElementById('target-id').value.trim();
+      if (!targetId) return alert('Введи ID!');
+      conn = peer.connect(targetId);
       setupConnection();
     }
 
-    // Настройка обработки P2P канала
     function setupConnection() {
       conn.on('open', () => {
-        updateStatus('✅ ПОДКЛЮЧЕНО К БРАТУ!', '#00ff66');
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО К БРАТУ!';
+        document.getElementById('status').style.color = '#00ff42';
       });
 
       conn.on('data', data => {
-        if (data.type === 'SHOOT') {
-          checkHit(data.angle);
-        } else if (data.type === 'HIT') {
+        if (data.type === 'HIT') die();
+      });
+    }
+
+    // Инициализация микрофона и анализатора ультразвука
+    async function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const source = audioCtx.createMediaStreamSource(micStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+
+        // Постоянно слушаем микрофон на предмет ультразвука
+        listenUltrasound();
+      } catch (err) {
+        alert('Нужен доступ к микрофону для считывания ультразвука!');
+      }
+    }
+
+    // Прослушивание частоты 19.5 кГц
+    function listenUltrasound() {
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function check() {
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Переводим 19.5 кГц в индекс массива FFT
+        const index = Math.round((US_FREQ / (audioCtx.sampleRate / 2)) * bufferLength);
+        const signalStrength = dataArray[index];
+
+        // Если прилетел мощный ультразвуковой импульс (> 140)
+        if (signalStrength > 140) {
+          if (conn && conn.open) {
+            conn.send({ type: 'HIT' });
+          }
           die();
         }
-      });
-
-      conn.on('close', () => {
-        updateStatus('⚠️ Брат отключился', '#ff3344');
-      });
-
-      conn.on('error', err => {
-        updateStatus('❌ Ошибка связи', '#ff3344');
-      });
+        requestAnimationFrame(check);
+      }
+      check();
     }
 
-    function updateStatus(text, color) {
-      const el = document.getElementById('status');
-      el.innerText = text;
-      el.style.color = color;
-    }
-
-    // 5. Выстрел
+    // Выстрел ультразвуковым импульсом
     function shoot() {
+      if (!audioCtx) initAudio();
+      
       playShotSound();
-      if (navigator.vibrate) navigator.vibrate(60);
+      if (navigator.vibrate) navigator.vibrate(80);
 
-      if (conn && conn.open) {
-        conn.send({ type: 'SHOOT', angle: myAngle });
-      } else {
-        alert('Сначала введи ID и нажми ПОДКЛЮЧИТЬСЯ!');
-      }
+      // Генерация не слышимого ухом ультразвукового сигнала (19.5 кГц)
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(US_FREQ, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(1.0, audioCtx.currentTime); // Максимальная мощность
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+      } catch(e) {}
     }
 
-    // 6. Проверка попадания (сектор ±25 градусов)
-    function checkHit(enemyAngle) {
-      let diff = Math.abs(myAngle - enemyAngle);
-      if (diff > 180) diff = 360 - diff;
-
-      // Если направления совпадают в пределах сектора
-      if (diff < 25) {
-        conn.send({ type: 'HIT' });
-      }
-    }
-
-    // 7. Поражение
     function die() {
       if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]);
       playExplosionSound();
@@ -439,46 +181,44 @@
       document.getElementById('dead-screen').style.display = 'none';
     }
 
-    // 8. Звуковые эффекты (Web Audio API)
+    // Звуковой эффект выстрела (для игрока)
     function playShotSound() {
-      if (!audioCtx) return;
       try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(650, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.14);
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.1);
 
-        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.14);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.14);
+        osc.stop(audioCtx.currentTime + 0.1);
       } catch(e) {}
     }
 
     function playExplosionSound() {
-      if (!audioCtx) return;
       try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
         osc.type = 'square';
-        osc.frequency.setValueAtTime(160, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.45);
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.4);
 
-        gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.45);
+        osc.stop(audioCtx.currentTime + 0.4);
       } catch(e) {}
     }
   </script>
