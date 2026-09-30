@@ -3,273 +3,688 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Cyber Laser Squad</title>
+  <title>Ultrasound LaserTag - Power Android Edition</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    :root {
-      --bg: #090a10;
-      --panel: #121420;
-      --accent: #00ffcc;
-      --ammo: #ffcc00;
-      --danger: #ff0055;
-      --text: #ffffff;
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #08080c; color: #fff; }
+
+    .app-container {
+      position: absolute; width: 100%; height: 100%;
+      display: grid;
+      grid-template-rows: 60px 1fr;
+      grid-template-columns: 1fr 1fr;
+      padding: 15px 25px;
+      background: radial-gradient(circle at center, #181824 0%, #050508 100%);
+      gap: 15px;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
-    body { background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 10px; }
-
-    .app {
-      width: 100%; max-width: 420px; background: var(--panel); border-radius: 20px; padding: 20px;
-      border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 15px; box-shadow: 0 10px 30px #000;
-    }
-
-    /* Верхняя панель: Комната */
-    .room-bar {
-      background: rgba(255,255,255,0.03); border: 1px dashed var(--accent); border-radius: 12px; padding: 12px;
+    .header-score {
+      grid-column: 1 / -1;
       display: flex; justify-content: space-between; align-items: center;
+      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 25px; border-radius: 16px; backdrop-filter: blur(10px);
     }
-    .room-code { font-size: 18px; font-weight: bold; color: var(--accent); letter-spacing: 2px; }
-    .btn-sm { background: var(--accent); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .score-box { display: flex; align-items: center; gap: 10px; }
+    .score-title { font-size: 13px; color: #888; font-weight: bold; }
+    .score-val { font-size: 26px; font-weight: 900; color: #00ff42; text-shadow: 0 0 10px rgba(0,255,66,0.5); }
+    .vs-badge { font-size: 13px; font-weight: bold; color: #ff0044; background: rgba(255,0,68,0.1); padding: 4px 12px; border-radius: 8px; }
 
-    /* Экран игры */
-    .arena {
-      height: 180px; background: rgba(0,0,0,0.4); border-radius: 14px; position: relative;
-      display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px solid rgba(255,255,255,0.05);
+    .setup-overlay {
+      position: absolute; top: 75px; left: 50%; transform: translateX(-50%);
+      background: rgba(20, 20, 30, 0.95); padding: 12px 20px; border-radius: 16px;
+      text-align: center; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 10;
+      display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     }
-    
-    .target-shield {
-      width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--accent);
-      display: flex; justify-content: center; align-items: center; font-weight: bold;
-      box-shadow: 0 0 15px var(--accent); transition: transform 0.05s;
+    .target-select { display: flex; gap: 4px; }
+    .target-btn {
+      padding: 6px 10px; background: #111; border: 1px solid #333; color: #888;
+      border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;
     }
-    .target-shield:active { transform: scale(0.9); }
+    .target-btn.active { background: #00ff42; color: #000; border-color: #00ff42; }
 
-    /* Патроны и перезарядка */
-    .ammo-box { display: flex; justify-content: space-between; align-items: center; }
-    .bullets { display: flex; gap: 4px; }
-    .bullet { width: 8px; height: 20px; background: var(--ammo); border-radius: 2px; }
-    .bullet.empty { background: rgba(255,255,255,0.1); }
-
-    /* Кнопки управления */
-    .controls { display: flex; gap: 10px; }
-    .btn-shoot {
-      flex: 2; padding: 16px; background: linear-gradient(135deg, #00ffcc, #0088ff); border: none;
-      border-radius: 12px; color: #000; font-size: 18px; font-weight: 900; cursor: pointer; text-transform: uppercase;
+    input.input-code { 
+      width: 90px; padding: 6px; border-radius: 8px; border: none; 
+      text-align: center; font-size: 18px; font-weight: bold; background: #111; color: #00ff42; 
     }
-    .btn-shoot:disabled { background: #333; color: #777; }
+    button.btn-connect { 
+      background: #00ff42; color: #000; font-weight: bold; padding: 8px 16px; border: none; 
+      border-radius: 8px; font-size: 13px; cursor: pointer; 
+    }
+
+    .controls-left, .controls-right {
+      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px;
+    }
+
+    .btn-fire {
+      width: 100%; height: 100%; max-height: 220px;
+      background: linear-gradient(135deg, #ff0044, #990022);
+      color: #fff; font-size: 34px; font-weight: 900; letter-spacing: 2px;
+      border-radius: 28px; border: 3px solid #ff4477;
+      box-shadow: 0 0 35px rgba(255, 0, 68, 0.5);
+      cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      transition: all 0.2s ease;
+    }
+    .btn-fire:active { transform: scale(0.96); background: #ff2255; }
+    .btn-fire.disabled { background: #222; border-color: #444; box-shadow: none; color: #666; cursor: not-allowed; }
+
+    .bolt-container {
+      width: 100%; background: #151520; border: 2px dashed #ffaa00;
+      border-radius: 18px; padding: 10px; text-align: center; position: relative;
+    }
+    .bolt-title { font-size: 11px; color: #ffaa00; font-weight: bold; margin-bottom: 6px; text-transform: uppercase; }
+    .bolt-track {
+      width: 100%; height: 44px; background: #0a0a10; border-radius: 22px;
+      position: relative; overflow: hidden; border: 1px solid #333; display: flex; align-items: center; justify-content: space-between; padding: 0 10px;
+      touch-action: none;
+    }
+    .bolt-handle {
+      width: 60px; height: 36px; background: linear-gradient(135deg, #ffaa00, #cc7700);
+      border-radius: 18px; color: #000; font-weight: 900; font-size: 12px;
+      display: flex; justify-content: center; align-items: center; cursor: pointer;
+      position: absolute; left: 5px; transition: transform 0.05s ease; box-shadow: 0 0 10px rgba(255,170,0,0.5);
+    }
+
     .btn-reload {
-      flex: 1; padding: 16px; background: rgba(255,204,0,0.15); border: 1px solid var(--ammo);
-      border-radius: 12px; color: var(--ammo); font-size: 14px; font-weight: bold; cursor: pointer;
+      width: 100%; height: 50px;
+      background: linear-gradient(135deg, #333, #111);
+      color: #aaa; font-size: 14px; font-weight: bold;
+      border-radius: 14px; border: 1px solid #444;
+      cursor: pointer; display: flex; justify-content: center; align-items: center;
+      position: relative; overflow: hidden;
     }
 
-    /* Переключатель Ультразвук/Микрофон */
-    .sensor-box {
-      background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; font-size: 12px;
-      display: flex; justify-content: space-between; align-items: center; color: #aaa;
+    .ammo-card {
+      width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 8px; text-align: center;
     }
+    .ammo-title { font-size: 10px; color: #aaa; text-transform: uppercase; }
+    .ammo-count { font-size: 26px; font-weight: 900; color: #ffcc00; }
+
+    .reload-bar {
+      position: absolute; bottom: 0; left: 0; height: 100%; width: 0%;
+      background: rgba(255, 170, 0, 0.4); transition: width 2s linear;
+    }
+
+    .game-screen {
+      position: absolute; z-index: 100; top: 0; left: 0; width: 100%; height: 100%;
+      display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+      padding: 20px; backdrop-filter: blur(15px);
+    }
+    #round-dead-screen { background: rgba(150, 0, 0, 0.92); }
+    #round-win-screen { background: rgba(0, 120, 40, 0.92); }
+    #match-end-screen { background: rgba(10, 10, 15, 0.96); }
+
+    .game-screen h1 { font-size: 42px; font-weight: 900; text-shadow: 0 0 15px rgba(0,0,0,0.8); }
+    .game-screen p { margin-top: 10px; font-size: 20px; opacity: 0.9; }
+    .btn-action { margin-top: 25px; padding: 16px 36px; background: #fff; color: #000; font-size: 20px; font-weight: bold; border-radius: 12px; border: none; cursor: pointer; }
   </style>
 </head>
 <body>
 
-<div class="app">
-  <!-- Комната -->
-  <div class="room-bar">
-    <div>
-      <div style="font-size: 10px; color: #aaa;">КОД ГРУППЫ</div>
-      <div class="room-code" id="roomCode">SQD-88</div>
+  <div class="app-container">
+    <div class="header-score">
+      <div class="score-box">
+        <div class="score-title">ТЫ:</div>
+        <div class="score-val" id="my-score">0</div>
+      </div>
+      <div class="vs-badge" id="match-target-badge">POWER AWM</div>
+      <div style="font-size: 11px; color: #888;" id="status">Код: <b id="my-id" style="color:#00ff42;">....</b></div>
+      <div class="score-box">
+        <div class="score-title">СОПЕРНИК:</div>
+        <div class="score-val" id="enemy-score" style="color:#ff0044;">0</div>
+      </div>
     </div>
-    <button class="btn-sm" id="joinBtn">Создать/Войти</button>
-  </div>
 
-  <!-- Арена -->
-  <div class="arena">
-    <div class="target-shield" id="target">
-      <span id="shieldVal">100%</span>
+    <div class="setup-overlay" id="setup-panel">
+      <div class="target-select">
+        <button class="target-btn active" onclick="setMatchLimit(5, this)">5 ПОБЕД</button>
+        <button class="target-btn" onclick="setMatchLimit(10, this)">10 ПОБЕД</button>
+        <button class="target-btn" onclick="setMatchLimit(20, this)">20 ПОБЕД</button>
+      </div>
+      <input type="number" class="input-code" id="target-id" placeholder="1234" pattern="[0-9]*" inputmode="numeric">
+      <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
     </div>
-    <div style="position: absolute; bottom: 8px; font-size: 12px; color: #888;">
-      Игроков в сети: <b style="color:#fff" id="playersCount">1</b>
+
+    <div class="controls-left">
+      <button class="btn-fire" id="btn-fire-elem" onclick="shoot()">
+        <span id="fire-btn-text">💥 ОГОНЬ</span>
+        <span style="font-size: 12px; font-weight: normal; opacity: 0.8; margin-top: 5px;" id="freq-info">Мощный Луч: ---</span>
+      </button>
+    </div>
+
+    <div class="controls-right">
+      <div class="ammo-card">
+        <div class="ammo-title">МАГА3ИН AWM</div>
+        <div class="ammo-count" id="ammo-display">10 / 10</div>
+      </div>
+
+      <div class="bolt-container">
+        <div class="bolt-title" id="bolt-status">ЗАПОЛНИ ПАТРОННИК</div>
+        <div class="bolt-track" id="bolt-track">
+          <span style="font-size: 10px; color: #555;">◀ НАЗАД</span>
+          <span style="font-size: 10px; color: #555;">ВПЕРЕД ▶</span>
+          <div class="bolt-handle" id="bolt-handle">AWM</div>
+        </div>
+      </div>
+
+      <button class="btn-reload" id="btn-reload-elem" onclick="reloadMagazine()">
+        <div class="reload-bar" id="reload-progress"></div>
+        🔄 СМЕНА МАГАЗИНА (2 СЕК)
+      </button>
     </div>
   </div>
 
-  <!-- Патроны -->
-  <div class="ammo-box">
-    <div class="bullets" id="bulletsContainer"></div>
-    <div style="font-size: 14px;"><b id="ammoText">10</b> / 10</div>
+  <div id="round-dead-screen" class="game-screen">
+    <h1>ТЫ ПОПАЛСЯ! ☠️️</h1>
+    <p id="round-dead-sub">Точный снайперский выстрел!</p>
+    <button class="btn-action" onclick="nextRound()">СЛЕДУЮЩИЙ РАУНД</button>
   </div>
 
-  <!-- Кнопки -->
-  <div class="controls">
-    <button class="btn-shoot" id="shootBtn">СТРЕЛЯТЬ 🔥</button>
-    <button class="btn-reload" id="reloadBtn">🔄 🚀</button>
+  <div id="round-win-screen" class="game-screen">
+    <h1>ТОЧНО В ЦЕЛЬ! 🎯</h1>
+    <p id="round-win-sub">Очко в твою пользу!</p>
+    <button class="btn-action" onclick="nextRound()">СЛЕДУЮЩИЙ РАУНД</button>
   </div>
 
-  <!-- Микрофон/Ультразвук -->
-  <div class="sensor-box">
-    <span>Сканер импульсов (Второй планшет)</span>
-    <button class="btn-sm" id="micBtn" style="background: #333; color: #fff;">Включить микрофон</button>
+  <div id="match-end-screen" class="game-screen">
+    <h1 id="match-result-title">ПОБЕДА В МАТЧЕ! 🏆</h1>
+    <p id="match-result-sub">Ты разгромил соперника!</p>
+    <button class="btn-action" onclick="resetMatch()">НОВЫЙ МАТЧ</button>
   </div>
-</div>
 
-<script>
-  // --- НАСТРОЙКИ ПАТРОНОВ И ИГРЫ ---
-  const MAX_AMMO = 10;
-  let currentAmmo = MAX_AMMO;
-  let isReloading = false;
-  let shield = 100;
-
-  const shootBtn = document.getElementById('shootBtn');
-  const reloadBtn = document.getElementById('reloadBtn');
-  const bulletsContainer = document.getElementById('bulletsContainer');
-  const ammoText = document.getElementById('ammoText');
-  const shieldVal = document.getElementById('shieldVal');
-  const target = document.getElementById('target');
-
-  // --- AUDIO SYNTHESIZER ---
-  let audioCtx = null;
-
-  function initAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  }
-
-  // Звук Выстрела + Высокочастотный "Ультразвуковой" импульс (17.5 кГц)
-  function playUltraShootSound() {
-    initAudio();
-
-    // 1. Слышимый звук клика/выстрела
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
-
-    // 2. Высокочастотный сигнал (для второго планшета)
-    const ultraOsc = audioCtx.createOscillator();
-    const ultraGain = audioCtx.createGain();
-    ultraOsc.type = 'sine';
-    ultraOsc.frequency.setValueAtTime(17500, audioCtx.currentTime); // ~17.5 кГц
-    ultraGain.gain.setValueAtTime(0.8, audioCtx.currentTime);
-    ultraGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-    ultraOsc.connect(ultraGain);
-    ultraGain.connect(audioCtx.destination);
-    ultraOsc.start();
-    ultraOsc.stop(audioCtx.currentTime + 0.08);
-  }
-
-  // Звук перезарядки
-  function playReloadSound() {
-    initAudio();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-    osc.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 0.25);
-    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.25);
-  }
-
-  // --- ОТОБРАЖЕНИЕ ПАТРОНОВ ---
-  function renderAmmo() {
-    bulletsContainer.innerHTML = '';
-    for (let i = 0; i < MAX_AMMO; i++) {
-      const b = document.createElement('div');
-      b.className = `bullet ${i < currentAmmo ? '' : 'empty'}`;
-      bulletsContainer.appendChild(b);
-    }
-    ammoText.innerText = currentAmmo;
-  }
-
-  // --- ВЫСТРЕЛ ---
-  function shoot() {
-    if (isReloading) return;
-    if (currentAmmo <= 0) {
-      reload();
-      return;
-    }
-
-    currentAmmo--;
-    renderAmmo();
-    playUltraShootSound();
-
-    // Урон по щиту
-    shield = Math.max(0, shield - 10);
-    shieldVal.innerText = `${shield}%`;
-    if (shield === 0) {
-      target.style.borderColor = '#ff0055';
-      setTimeout(() => { shield = 100; shieldVal.innerText = '100%'; target.style.borderColor = 'var(--accent)'; }, 1000);
-    }
-
-    if (currentAmmo === 0) {
-      shootBtn.disabled = true;
-      shootBtn.innerText = 'НЕТ ПАТРОНОВ!';
-    }
-  }
-
-  // --- ПЕРЕЗАРЯДКА ---
-  function reload() {
-    if (isReloading || currentAmmo === MAX_AMMO) return;
-    isReloading = true;
-    shootBtn.disabled = true;
-    shootBtn.innerText = 'ПЕРЕЗАРЯДКА...';
-    playReloadSound();
-
-    setTimeout(() => {
-      currentAmmo = MAX_AMMO;
-      isReloading = false;
-      shootBtn.disabled = false;
-      shootBtn.innerText = 'СТРЕЛЯТЬ 🔥';
-      renderAmmo();
-    }, 1200); // 1.2 секунды перезарядка
-  }
-
-  // --- СКАНЕР МИКРОФОНА (ДЛЯ ВТОРОГО ПЛАНШЕТА) ---
-  let micActive = false;
-  document.getElementById('micBtn').addEventListener('click', async function() {
-    initAudio();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const micSource = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      micSource.connect(analyser);
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      this.innerText = "Сканер Активен 📡";
-      this.style.background = "var(--accent)";
-      this.style.color = "#000";
-
-      // Постоянная проверка ультразвуковых частот (~17.5кГц)
-      function detectSignal() {
-        analyser.getByteFrequencyData(dataArray);
-        // Смотрим верхние частотные бины
-        let highFreqVolume = dataArray[200]; // Высокий диапазон
-        if (highFreqVolume > 180) { // Порог срабатывания
-          shield = Math.max(0, shield - 10);
-          shieldVal.innerText = `${shield}%`;
-        }
-        requestAnimationFrame(detectSignal);
+  <script>
+    const myFourDigits = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    const peerConfig = {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
       }
-      detectSignal();
-    } catch(err) {
-      alert("Нужен доступ к микрофону, чтобы ловить выстрелы другого планшета!");
-    }
-  });
+    };
 
-  // ИНИЦИАЛИЗАЦИЯ
-  shootBtn.addEventListener('click', shoot);
-  reloadBtn.addEventListener('click', reload);
-  renderAmmo();
-</script>
+    const peer = new Peer('lt-game-' + myFourDigits, peerConfig);
+
+    let conn = null;
+    let audioCtx = null;
+    let analyser = null;
+
+    let myTXFreq = 16500;
+    let myRXFreq = 17500;
+    
+    let myScore = 0;
+    let enemyScore = 0;
+    let maxWins = 5;
+
+    const MAX_AMMO = 10;
+    let currentAmmo = MAX_AMMO;
+    let isChamberLoaded = true;
+    let isReloading = false;
+
+    let isMutedSelf = false;
+    let isRoundOver = false;
+
+    const HIT_THRESHOLD = 70; 
+
+    document.getElementById('my-id').innerText = myFourDigits;
+
+    function setMatchLimit(val, btn) {
+      maxWins = val;
+      document.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    peer.on('connection', c => {
+      conn = c;
+      myTXFreq = 16500;
+      myRXFreq = 17500;
+      document.getElementById('freq-info').innerText = "16.5 кГц (POWER)";
+      setupConnection();
+    });
+
+    async function connectToBrother() {
+      await initAudio();
+      const targetDigit = document.getElementById('target-id').value.trim();
+      if (!targetDigit || targetDigit.length !== 4) return alert('Введи 4 цифры!');
+      
+      document.getElementById('status').innerText = 'Поиск...';
+      conn = peer.connect('lt-game-' + targetDigit, { reliable: true });
+      
+      myTXFreq = 17500;
+      myRXFreq = 16500;
+      document.getElementById('freq-info').innerText = "17.5 кГц (POWER)";
+      setupConnection();
+    }
+
+    function setupConnection() {
+      if (!conn) return;
+
+      conn.on('open', () => {
+        document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО';
+        document.getElementById('status').style.color = '#00ff42';
+        document.getElementById('setup-panel').style.display = 'none';
+        initAudio();
+        conn.send({ type: 'SYNC_LIMIT', limit: maxWins });
+      });
+
+      conn.on('data', data => {
+        if (data.type === 'I_DIED') {
+          if (!isRoundOver) handleRoundWin();
+        } else if (data.type === 'NEXT_ROUND') {
+          hideScreens();
+        } else if (data.type === 'RESET_MATCH') {
+          fullReset();
+        } else if (data.type === 'SYNC_LIMIT') {
+          maxWins = data.limit;
+        }
+      });
+
+      conn.on('close', () => {
+        document.getElementById('status').innerText = '❌ ОТКЛЮЧЕНО';
+        document.getElementById('status').style.color = '#ff0044';
+      });
+    }
+
+    async function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      if (!analyser) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+              echoCancellation: false, 
+              noiseSuppression: false, 
+              autoGainControl: false 
+            } 
+          });
+          const source = audioCtx.createMediaStreamSource(stream);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 2048;
+          analyser.smoothingTimeConstant = 0.2;
+          source.connect(analyser);
+
+          listenUltrasound();
+        } catch (err) {
+          console.error('Ошибка доступа к микрофону:', err);
+        }
+      }
+    }
+
+    function listenUltrasound() {
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function check() {
+        if (!isMutedSelf && !isRoundOver && analyser) {
+          analyser.getByteFrequencyData(dataArray);
+          
+          const currentSampleRate = audioCtx.sampleRate;
+          const centerIndex = Math.round((myRXFreq / (currentSampleRate / 2)) * bufferLength);
+          
+          let maxSignal = 0;
+          for (let i = centerIndex - 4; i <= centerIndex + 4; i++) {
+            if (dataArray[i] && dataArray[i] > maxSignal) {
+              maxSignal = dataArray[i];
+            }
+          }
+
+          if (maxSignal > HIT_THRESHOLD) {
+            handleRoundLoss();
+          }
+        }
+        requestAnimationFrame(check);
+      }
+      check();
+    }
+
+    async function shoot() {
+      if (isRoundOver || isReloading) return;
+
+      if (!isChamberLoaded) {
+        playEmptyClickSound();
+        return;
+      }
+
+      if (currentAmmo <= 0) {
+        playEmptyClickSound();
+        return;
+      }
+
+      await initAudio();
+      
+      currentAmmo--;
+      isChamberLoaded = false;
+      updateAmmoUI();
+
+      const fireBtn = document.getElementById('btn-fire-elem');
+      const fireText = document.getElementById('fire-btn-text');
+      fireBtn.classList.add('disabled');
+      fireText.innerText = "⚙️ ДЁРГАЙ ЗА ТЯГУ";
+      document.getElementById('bolt-status').innerText = "⚠️ ВЗВЕДИ ЗАТВОР AWM!";
+      document.getElementById('bolt-status').style.color = "#ff0044";
+
+      isMutedSelf = true;
+      setTimeout(() => { isMutedSelf = false; }, 600);
+
+      if (navigator.vibrate) navigator.vibrate(80);
+
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'square'; 
+        osc.frequency.setValueAtTime(myTXFreq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch(e) {}
+    }
+
+    const boltHandle = document.getElementById('bolt-handle');
+    const boltTrack = document.getElementById('bolt-track');
+    let isDragging = false;
+    let pulledBack = false;
+
+    boltHandle.addEventListener('touchstart', startBolt, { passive: true });
+    boltHandle.addEventListener('mousedown', startBolt);
+
+    window.addEventListener('touchmove', moveBolt, { passive: false });
+    window.addEventListener('mousemove', moveBolt);
+
+    window.addEventListener('touchend', endBolt);
+    window.addEventListener('mouseup', endBolt);
+
+    function startBolt(e) {
+      if (isChamberLoaded || isReloading || currentAmmo <= 0) return;
+      isDragging = true;
+    }
+
+    function moveBolt(e) {
+      if (!isDragging) return;
+      if (e.cancelable) e.preventDefault();
+
+      const rect = boltTrack.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      let x = clientX - rect.left - 30;
+
+      if (x < 5) x = 5;
+      if (x > rect.width - 65) x = rect.width - 65;
+
+      boltHandle.style.left = x + 'px';
+
+      if (x >= rect.width - 75 && !pulledBack) {
+        pulledBack = true;
+        playBoltPullSound();
+        if (navigator.vibrate) navigator.vibrate(30);
+      }
+
+      if (x <= 15 && pulledBack) {
+        pulledBack = false;
+        isDragging = false;
+        isChamberLoaded = true;
+        playBoltPushSound();
+        if (navigator.vibrate) navigator.vibrate([40, 40]);
+
+        document.getElementById('btn-fire-elem').classList.remove('disabled');
+        document.getElementById('fire-btn-text').innerText = "💥 ОГОНЬ";
+        document.getElementById('bolt-status').innerText = "✅ ПАТРОН В ПАТРОННИКЕ!";
+        document.getElementById('bolt-status').style.color = "#00ff42";
+      }
+    }
+
+    function endBolt() {
+      if (isDragging) {
+        isDragging = false;
+        pulledBack = false;
+        boltHandle.style.left = '5px';
+      }
+    }
+
+    function reloadMagazine() {
+      if (isReloading || currentAmmo === MAX_AMMO || isRoundOver) return;
+
+      isReloading = true;
+      const fireBtn = document.getElementById('btn-fire-elem');
+      const fireText = document.getElementById('fire-btn-text');
+      const progressBar = document.getElementById('reload-progress');
+      
+      fireBtn.classList.add('disabled');
+      fireText.innerText = "🔄 СМЕНА МАГАЗИНА...";
+      
+      progressBar.style.transition = 'none';
+      progressBar.style.width = '0%';
+      setTimeout(() => {
+        progressBar.style.transition = 'width 2s linear';
+        progressBar.style.width = '100%';
+      }, 20);
+
+      playReloadSound();
+      if (navigator.vibrate) navigator.vibrate([100, 100, 200]);
+
+      setTimeout(() => {
+        currentAmmo = MAX_AMMO;
+        isChamberLoaded = true;
+        updateAmmoUI();
+        isReloading = false;
+        fireBtn.classList.remove('disabled');
+        fireText.innerText = "💥 ОГОНЬ";
+        document.getElementById('bolt-status').innerText = "✅ ГОТОВ К БОЮ!";
+        document.getElementById('bolt-status').style.color = "#00ff42";
+
+        progressBar.style.transition = 'none';
+        progressBar.style.width = '0%';
+      }, 2000);
+    }
+
+    function updateAmmoUI() {
+      document.getElementById('ammo-display').innerText = `${currentAmmo} / ${MAX_AMMO}`;
+      document.getElementById('ammo-display').style.color = (currentAmmo === 0) ? '#ff0044' : '#ffcc00';
+    }
+
+    function handleRoundLoss() {
+      if (isRoundOver) return;
+      isRoundOver = true;
+
+      enemyScore++;
+      updateScoreUI();
+
+      if (conn && conn.open) {
+        conn.send({ type: 'I_DIED' });
+      }
+
+      if (enemyScore >= maxWins) {
+        showMatchEnd(false);
+      } else {
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        playLossSound();
+        document.getElementById('round-dead-screen').style.display = 'flex';
+      }
+    }
+
+    function handleRoundWin() {
+      if (isRoundOver) return;
+      isRoundOver = true;
+
+      myScore++;
+      updateScoreUI();
+
+      if (myScore >= maxWins) {
+        showMatchEnd(true);
+      } else {
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        playWinSound();
+        document.getElementById('round-win-screen').style.display = 'flex';
+      }
+    }
+
+    function updateScoreUI() {
+      document.getElementById('my-score').innerText = myScore;
+      document.getElementById('enemy-score').innerText = enemyScore;
+    }
+
+    function showMatchEnd(isWinner) {
+      const screen = document.getElementById('match-end-screen');
+      const title = document.getElementById('match-result-title');
+      const sub = document.getElementById('match-result-sub');
+
+      if (isWinner) {
+        title.innerText = "ПОБЕДА В МАТЧЕ! 🏆";
+        title.style.color = "#00ff42";
+        sub.innerText = `Ты первым набрал ${maxWins} побед!`;
+        playWinSound();
+      } else {
+        title.innerText = "ПОРАЖЕНИЕ В МАТЧЕ ☠️";
+        title.style.color = "#ff0044";
+        sub.innerText = `Соперник выиграл со счетом ${enemyScore}:${myScore}`;
+        playLossSound();
+      }
+      screen.style.display = 'flex';
+    }
+
+    function nextRound() {
+      currentAmmo = MAX_AMMO;
+      isChamberLoaded = true;
+      updateAmmoUI();
+      hideScreens();
+      if (conn && conn.open) {
+        conn.send({ type: 'NEXT_ROUND' });
+      }
+    }
+
+    function resetMatch() {
+      fullReset();
+      if (conn && conn.open) {
+        conn.send({ type: 'RESET_MATCH' });
+      }
+    }
+
+    function fullReset() {
+      myScore = 0;
+      enemyScore = 0;
+      currentAmmo = MAX_AMMO;
+      isChamberLoaded = true;
+      updateAmmoUI();
+      updateScoreUI();
+      hideScreens();
+    }
+
+    function hideScreens() {
+      isRoundOver = false;
+      document.getElementById('btn-fire-elem').classList.remove('disabled');
+      document.getElementById('fire-btn-text').innerText = "💥 ОГОНЬ";
+      document.getElementById('round-dead-screen').style.display = 'none';
+      document.getElementById('round-win-screen').style.display = 'none';
+      document.getElementById('match-end-screen').style.display = 'none';
+    }
+
+    function playBoltPullSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch(e) {}
+    }
+
+    function playBoltPushSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(500, audioCtx.currentTime + 0.06);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.06);
+      } catch(e) {}
+    }
+
+    function playEmptyClickSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+      } catch(e) {}
+    }
+
+    function playReloadSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch(e) {}
+    }
+
+    function playLossSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } catch(e) {}
+    }
+
+    function playWinSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(350, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch(e) {}
+    }
+  </script>
 </body>
 </html>
