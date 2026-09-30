@@ -3,67 +3,99 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultrasound LaserTag Pro</title>
+  <title>Ultrasound LaserTag Pro - Tablet Edition</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body, html { width: 100%; height: 100%; overflow: hidden; background: #08080c; color: #fff; }
 
+    /* Горизонтальный контейнер */
     .app-container {
       position: absolute; width: 100%; height: 100%;
-      display: flex; flex-direction: column; justify-content: space-between;
-      padding: 20px; background: radial-gradient(circle at center, #181824 0%, #050508 100%);
+      display: grid;
+      grid-template-rows: 60px 1fr;
+      grid-template-columns: 1fr 1fr;
+      padding: 15px 25px;
+      background: radial-gradient(circle at center, #181824 0%, #050508 100%);
+      gap: 15px;
     }
 
-    /* Верхняя панель со счетом */
+    /* Верхняя панель счета */
     .header-score {
+      grid-column: 1 / -1;
       display: flex; justify-content: space-between; align-items: center;
       background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 12px 20px; border-radius: 16px; backdrop-filter: blur(10px);
+      padding: 8px 25px; border-radius: 16px; backdrop-filter: blur(10px);
     }
-    .score-box { text-align: center; }
-    .score-title { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-    .score-val { font-size: 28px; font-weight: 900; color: #00ff42; text-shadow: 0 0 10px rgba(0,255,66,0.5); }
-    .vs-badge { font-size: 14px; font-weight: bold; color: #ff0044; }
+    .score-box { display: flex; align-items: center; gap: 10px; }
+    .score-title { font-size: 13px; color: #888; font-weight: bold; }
+    .score-val { font-size: 26px; font-weight: 900; color: #00ff42; text-shadow: 0 0 10px rgba(0,255,66,0.5); }
+    .vs-badge { font-size: 13px; font-weight: bold; color: #ff0044; background: rgba(255,0,68,0.1); padding: 4px 12px; border-radius: 8px; }
 
-    /* Кнопка огня */
-    .fire-zone {
-      display: flex; justify-content: center; align-items: center; flex: 1; margin: 20px 0;
+    /* Панель подключения (в центре) */
+    .setup-overlay {
+      position: absolute; top: 75px; left: 50%; transform: translateX(-50%);
+      background: rgba(20, 20, 30, 0.95); padding: 12px 20px; border-radius: 16px;
+      text-align: center; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 10;
+      display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     }
-    .btn-fire {
-      width: 100%; max-width: 300px; height: 180px;
-      background: linear-gradient(135deg, #ff0044, #990022);
-      color: #fff; font-size: 32px; font-weight: 900; letter-spacing: 2px;
-      border-radius: 28px; border: 3px solid #ff4477;
-      box-shadow: 0 0 30px rgba(255, 0, 68, 0.6);
-      cursor: pointer; transition: transform 0.05s ease;
-      display: flex; flex-direction: column; justify-content: center; align-items: center;
-    }
-    .btn-fire:active { transform: scale(0.94); background: #ff2255; }
-    .btn-fire span { font-size: 13px; font-weight: normal; opacity: 0.8; margin-top: 6px; }
-
-    /* Нижняя панель настройки */
-    .panel-bottom {
-      background: rgba(20, 20, 30, 0.95); padding: 18px; border-radius: 20px;
-      text-align: center; border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .target-select {
-      display: flex; justify-content: center; gap: 8px; margin: 10px 0;
-    }
+    .target-select { display: flex; gap: 4px; }
     .target-btn {
-      flex: 1; padding: 8px; background: #111; border: 1px solid #333; color: #888;
-      border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;
+      padding: 6px 10px; background: #111; border: 1px solid #333; color: #888;
+      border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;
     }
     .target-btn.active { background: #00ff42; color: #000; border-color: #00ff42; }
 
-    input { 
-      width: 100%; padding: 12px; margin: 8px 0; border-radius: 10px; border: none; 
-      text-align: center; font-size: 20px; font-weight: bold; background: #111; color: #00ff42; 
-      letter-spacing: 4px;
+    input.input-code { 
+      width: 90px; padding: 6px; border-radius: 8px; border: none; 
+      text-align: center; font-size: 18px; font-weight: bold; background: #111; color: #00ff42; 
     }
     button.btn-connect { 
-      background: #00ff42; color: #000; font-weight: bold; padding: 14px; border: none; 
-      border-radius: 10px; width: 100%; font-size: 16px; cursor: pointer; 
+      background: #00ff42; color: #000; font-weight: bold; padding: 8px 16px; border: none; 
+      border-radius: 8px; font-size: 13px; cursor: pointer; 
+    }
+
+    /* Игровые зоны под левую и правую руку */
+    .controls-left, .controls-right {
+      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px;
+    }
+
+    /* Кнопка ОГОНЬ (Слева под левый палец) */
+    .btn-fire {
+      width: 100%; height: 100%; max-height: 220px;
+      background: linear-gradient(135deg, #ff0044, #990022);
+      color: #fff; font-size: 36px; font-weight: 900; letter-spacing: 2px;
+      border-radius: 28px; border: 3px solid #ff4477;
+      box-shadow: 0 0 35px rgba(255, 0, 68, 0.5);
+      cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .btn-fire:active { transform: scale(0.96); background: #ff2255; }
+    .btn-fire.disabled { background: #444; border-color: #666; box-shadow: none; opacity: 0.6; }
+
+    /* Кнопка ПЕРЕЗАРЯДКА (Справа под правый палец) */
+    .btn-reload {
+      width: 100%; height: 60%; max-height: 130px;
+      background: linear-gradient(135deg, #ff9900, #cc6600);
+      color: #fff; font-size: 24px; font-weight: 900; letter-spacing: 1px;
+      border-radius: 24px; border: 3px solid #ffaa33;
+      box-shadow: 0 0 25px rgba(255, 153, 0, 0.4);
+      cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      position: relative; overflow: hidden;
+    }
+    .btn-reload:active { transform: scale(0.96); }
+
+    /* Индикатор патронов */
+    .ammo-card {
+      width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px; padding: 12px; text-align: center;
+    }
+    .ammo-title { font-size: 11px; color: #aaa; text-transform: uppercase; margin-bottom: 4px; }
+    .ammo-count { font-size: 32px; font-weight: 900; color: #ffcc00; letter-spacing: 2px; }
+
+    /* Прогресс-бар перезарядки */
+    .reload-bar {
+      position: absolute; bottom: 0; left: 0; height: 100%; width: 0%;
+      background: rgba(255, 255, 255, 0.3); transition: width 2s linear;
     }
 
     /* Экраны результатов */
@@ -76,9 +108,9 @@
     #round-win-screen { background: rgba(0, 120, 40, 0.92); }
     #match-end-screen { background: rgba(10, 10, 15, 0.96); }
 
-    .game-screen h1 { font-size: 38px; font-weight: 900; text-shadow: 0 0 15px rgba(0,0,0,0.8); }
-    .game-screen p { margin-top: 10px; font-size: 18px; opacity: 0.9; }
-    .btn-action { margin-top: 25px; padding: 14px 32px; background: #fff; color: #000; font-size: 18px; font-weight: bold; border-radius: 12px; border: none; cursor: pointer; }
+    .game-screen h1 { font-size: 42px; font-weight: 900; text-shadow: 0 0 15px rgba(0,0,0,0.8); }
+    .game-screen p { margin-top: 10px; font-size: 20px; opacity: 0.9; }
+    .btn-action { margin-top: 25px; padding: 16px 36px; background: #fff; color: #000; font-size: 20px; font-weight: bold; border-radius: 12px; border: none; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -86,53 +118,64 @@
   <div class="app-container">
     <div class="header-score">
       <div class="score-box">
-        <div class="score-title">ТЫ</div>
+        <div class="score-title">ТЫ:</div>
         <div class="score-val" id="my-score">0</div>
       </div>
       <div class="vs-badge" id="match-target-badge">ДО 5 ПОБЕД</div>
+      <div style="font-size: 11px; color: #888;" id="status">Код: <b id="my-id" style="color:#00ff42;">....</b></div>
       <div class="score-box">
-        <div class="score-title">БРАТ</div>
+        <div class="score-title">БРАТ:</div>
         <div class="score-val" id="enemy-score" style="color:#ff0044;">0</div>
       </div>
     </div>
 
-    <div class="fire-zone">
-      <button class="btn-fire" onclick="shoot()">
+    <!-- Панель сопряжения -->
+    <div class="setup-overlay" id="setup-panel">
+      <div class="target-select">
+        <button class="target-btn active" onclick="setMatchLimit(5, this)">5 ПОБЕД</button>
+        <button class="target-btn" onclick="setMatchLimit(10, this)">10 ПОБЕД</button>
+        <button class="target-btn" onclick="setMatchLimit(20, this)">20 ПОБЕД</button>
+      </div>
+      <input type="number" class="input-code" id="target-id" placeholder="1234" pattern="[0-9]*" inputmode="numeric">
+      <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
+    </div>
+
+    <!-- Левая рука: Выстрел -->
+    <div class="controls-left">
+      <button class="btn-fire" id="btn-fire-elem" onclick="shoot()">
         💥 ОГОНЬ
-        <span id="freq-info">Ультразвук: ---</span>
+        <span style="font-size: 12px; font-weight: normal; opacity: 0.8; margin-top: 5px;" id="freq-info">Ультразвук: ---</span>
       </button>
     </div>
 
-    <div class="panel-bottom" id="setup-panel">
-      <div style="font-size: 13px; color: #aaa;">Твой код: <b id="my-id" style="color:#00ff42; font-size: 22px;">....</b></div>
-      
-      <div class="target-select">
-        <button class="target-btn active" onclick="setMatchLimit(5, this)">ДО 5</button>
-        <button class="target-btn" onclick="setMatchLimit(10, this)">ДО 10</button>
-        <button class="target-btn" onclick="setMatchLimit(20, this)">ДО 20</button>
+    <!-- Правая рука: Патроны + Перезарядка -->
+    <div class="controls-right">
+      <div class="ammo-card">
+        <div class="ammo-title">ПА Т Р О Н Ы</div>
+        <div class="ammo-count" id="ammo-display">10 / 10</div>
       </div>
 
-      <input type="number" id="target-id" placeholder="1234" pattern="[0-9]*" inputmode="numeric">
-      <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
-      <div id="status" style="margin-top:8px; font-size:11px; color:#888;">Выбери цель по победам и введи код</div>
+      <button class="btn-reload" id="btn-reload-elem" onclick="reloadAmmo()">
+        <div class="reload-bar" id="reload-progress"></div>
+        🔄 ПЕРЕЗАРЯДКА
+        <span style="font-size: 11px; font-weight: normal; opacity: 0.8; margin-top: 4px;">Занимает 2 сек</span>
+      </button>
     </div>
   </div>
 
-  <!-- Экран поражения в раунде -->
+  <!-- Экраны результатов -->
   <div id="round-dead-screen" class="game-screen">
     <h1>ТЫ ПОПАЛСЯ! ☠️</h1>
     <p id="round-dead-sub">Брат забрал этот раунд!</p>
     <button class="btn-action" onclick="nextRound()">СЛЕДУЮЩИЙ РАУНД</button>
   </div>
 
-  <!-- Экран победы в раунде -->
   <div id="round-win-screen" class="game-screen">
     <h1>ТОЧНО В ЦЕЛЬ! 🎯</h1>
     <p id="round-win-sub">Очко в твою пользу!</p>
     <button class="btn-action" onclick="nextRound()">СЛЕДУЮЩИЙ РАУНД</button>
   </div>
 
-  <!-- Экран завершения матча -->
   <div id="match-end-screen" class="game-screen">
     <h1 id="match-result-title">ПОБЕДА В МАТЧЕ! 🏆</h1>
     <p id="match-result-sub">Ты разгромил соперника!</p>
@@ -157,13 +200,17 @@
     let audioCtx = null;
     let analyser = null;
 
-    // Настройки частот (Игрок 1 по умолчанию)
-    let myTXFreq = 18500; // Частота выстрела
-    let myRXFreq = 19500; // Частота приема
+    let myTXFreq = 18500;
+    let myRXFreq = 19500;
     
     let myScore = 0;
     let enemyScore = 0;
     let maxWins = 5;
+
+    // Патроны
+    const MAX_AMMO = 10;
+    let currentAmmo = MAX_AMMO;
+    let isReloading = false;
 
     let isMutedSelf = false;
     let isRoundOver = false;
@@ -179,25 +226,23 @@
 
     peer.on('connection', c => {
       conn = c;
-      // Тот, кто принял подключение — Игрок 1
       myTXFreq = 18500;
       myRXFreq = 19500;
-      document.getElementById('freq-info').innerText = "Передача: 18.5кГц | Прием: 19.5кГц";
+      document.getElementById('freq-info').innerText = "18.5 кГц";
       setupConnection();
     });
 
     async function connectToBrother() {
       await initAudio();
       const targetDigit = document.getElementById('target-id').value.trim();
-      if (!targetDigit || targetDigit.length !== 4) return alert('Введи ровно 4 цифры!');
+      if (!targetDigit || targetDigit.length !== 4) return alert('Введи 4 цифры!');
       
-      document.getElementById('status').innerText = 'Поиск устройства...';
+      document.getElementById('status').innerText = 'Поиск...';
       conn = peer.connect('lt-game-' + targetDigit, { reliable: true });
       
-      // Тот, кто инициировал подключение — Игрок 2 (зеркальные частоты)
       myTXFreq = 19500;
       myRXFreq = 18500;
-      document.getElementById('freq-info').innerText = "Передача: 19.5кГц | Прием: 18.5кГц";
+      document.getElementById('freq-info').innerText = "19.5 кГц";
       setupConnection();
     }
 
@@ -205,11 +250,10 @@
       if (!conn) return;
 
       conn.on('open', () => {
-        document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО!';
+        document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО';
         document.getElementById('status').style.color = '#00ff42';
+        document.getElementById('setup-panel').style.display = 'none'; // Прячем панель сопряжения
         initAudio();
-
-        // Синхронизируем лимит побед
         conn.send({ type: 'SYNC_LIMIT', limit: maxWins });
       });
 
@@ -261,7 +305,6 @@
           const currentSampleRate = audioCtx.sampleRate;
           const centerIndex = Math.round((myRXFreq / (currentSampleRate / 2)) * bufferLength);
           
-          // Сканируем диапазон (полоса пропускания ±3 ячейки)
           let maxSignal = 0;
           for (let i = centerIndex - 3; i <= centerIndex + 3; i++) {
             if (dataArray[i] && dataArray[i] > maxSignal) {
@@ -279,9 +322,21 @@
     }
 
     async function shoot() {
-      if (isRoundOver) return;
+      if (isRoundOver || isReloading) return;
+
+      // Проверка патронов
+      if (currentAmmo <= 0) {
+        if (navigator.vibrate) navigator.vibrate([30, 30, 30]);
+        playEmptyClickSound();
+        return;
+      }
+
       await initAudio();
       
+      // Минус патрон
+      currentAmmo--;
+      updateAmmoUI();
+
       isMutedSelf = true;
       setTimeout(() => { isMutedSelf = false; }, 450);
 
@@ -303,6 +358,39 @@
         osc.start();
         osc.stop(audioCtx.currentTime + 0.35);
       } catch(e) {}
+    }
+
+    function reloadAmmo() {
+      if (isReloading || currentAmmo === MAX_AMMO || isRoundOver) return;
+
+      isReloading = true;
+      const fireBtn = document.getElementById('btn-fire-elem');
+      const progressBar = document.getElementById('reload-progress');
+      
+      fireBtn.classList.add('disabled');
+      progressBar.style.width = '100%';
+
+      playReloadSound();
+      if (navigator.vibrate) navigator.vibrate([100, 100, 200]);
+
+      setTimeout(() => {
+        currentAmmo = MAX_AMMO;
+        updateAmmoUI();
+        isReloading = false;
+        fireBtn.classList.remove('disabled');
+        progressBar.style.transition = 'none';
+        progressBar.style.width = '0%';
+        setTimeout(() => { progressBar.style.transition = 'width 2s linear'; }, 50);
+      }, 2000);
+    }
+
+    function updateAmmoUI() {
+      document.getElementById('ammo-display').innerText = `${currentAmmo} / ${MAX_AMMO}`;
+      if (currentAmmo === 0) {
+        document.getElementById('ammo-display').style.color = '#ff0044';
+      } else {
+        document.getElementById('ammo-display').style.color = '#ffcc00';
+      }
     }
 
     function handleRoundLoss() {
@@ -366,6 +454,8 @@
     }
 
     function nextRound() {
+      currentAmmo = MAX_AMMO;
+      updateAmmoUI();
       hideScreens();
       if (conn && conn.open) {
         conn.send({ type: 'NEXT_ROUND' });
@@ -382,6 +472,8 @@
     function fullReset() {
       myScore = 0;
       enemyScore = 0;
+      currentAmmo = MAX_AMMO;
+      updateAmmoUI();
       updateScoreUI();
       hideScreens();
     }
@@ -391,6 +483,37 @@
       document.getElementById('round-dead-screen').style.display = 'none';
       document.getElementById('round-win-screen').style.display = 'none';
       document.getElementById('match-end-screen').style.display = 'none';
+    }
+
+    function playEmptyClickSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+      } catch(e) {}
+    }
+
+    function playReloadSound() {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch(e) {}
     }
 
     function playLossSound() {
