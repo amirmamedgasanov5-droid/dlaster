@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultrasound LaserTag - AWM Sniper Edition</title>
+  <title>Ultrasound LaserTag - Power Android Edition</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -56,7 +56,6 @@
       display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px;
     }
 
-    /* Кнопка ВЫСТРЕЛ */
     .btn-fire {
       width: 100%; height: 100%; max-height: 220px;
       background: linear-gradient(135deg, #ff0044, #990022);
@@ -69,7 +68,6 @@
     .btn-fire:active { transform: scale(0.96); background: #ff2255; }
     .btn-fire.disabled { background: #222; border-color: #444; box-shadow: none; color: #666; cursor: not-allowed; }
 
-    /* Механический затвор AWM */
     .bolt-container {
       width: 100%; background: #151520; border: 2px dashed #ffaa00;
       border-radius: 18px; padding: 10px; text-align: center; position: relative;
@@ -86,7 +84,6 @@
       position: absolute; left: 5px; transition: transform 0.1s ease; box-shadow: 0 0 10px rgba(255,170,0,0.5);
     }
 
-    /* Кнопка ПЕРЕЗАРЯДКА МАГАЗИНА */
     .btn-reload {
       width: 100%; height: 50px;
       background: linear-gradient(135deg, #333, #111);
@@ -130,7 +127,7 @@
         <div class="score-title">ТЫ:</div>
         <div class="score-val" id="my-score">0</div>
       </div>
-      <div class="vs-badge" id="match-target-badge">AWM SNIPER</div>
+      <div class="vs-badge" id="match-target-badge">POWER AWM</div>
       <div style="font-size: 11px; color: #888;" id="status">Код: <b id="my-id" style="color:#00ff42;">....</b></div>
       <div class="score-box">
         <div class="score-title">БРАТ:</div>
@@ -148,24 +145,21 @@
       <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
     </div>
 
-    <!-- Левая рука: Выстрел -->
     <div class="controls-left">
       <button class="btn-fire" id="btn-fire-elem" onclick="shoot()">
         <span id="fire-btn-text">💥 ОГОНЬ</span>
-        <span style="font-size: 12px; font-weight: normal; opacity: 0.8; margin-top: 5px;" id="freq-info">Ультразвук: ---</span>
+        <span style="font-size: 12px; font-weight: normal; opacity: 0.8; margin-top: 5px;" id="freq-info">Мощный Луч: ---</span>
       </button>
     </div>
 
-    <!-- Правая рука: Патроны + Затвор AWM + Магазин -->
     <div class="controls-right">
       <div class="ammo-card">
         <div class="ammo-title">МАГА3ИН AWM</div>
         <div class="ammo-count" id="ammo-display">10 / 10</div>
       </div>
 
-      <!-- Механический затвор -->
       <div class="bolt-container">
-        <div class="bolt-title" id="bolt-status">ЗАПАЧКАН ЗАВОД (ДЁРГАЙ ЗА ТЯГУ)</div>
+        <div class="bolt-title" id="bolt-status">ЗАПОЛНИ ПАТРОННИК</div>
         <div class="bolt-track" id="bolt-track">
           <span style="font-size: 10px; color: #555;">◀ НАЗАД</span>
           <span style="font-size: 10px; color: #555;">ВПЕРЕД ▶</span>
@@ -216,8 +210,9 @@
     let audioCtx = null;
     let analyser = null;
 
-    let myTXFreq = 18500;
-    let myRXFreq = 19500;
+    // Оптимизированные частоты для слабейших динамиков Андроида
+    let myTXFreq = 16500;
+    let myRXFreq = 17500;
     
     let myScore = 0;
     let enemyScore = 0;
@@ -225,13 +220,14 @@
 
     const MAX_AMMO = 10;
     let currentAmmo = MAX_AMMO;
-    let isChamberLoaded = true; // Патрон дослан в патронник
+    let isChamberLoaded = true;
     let isReloading = false;
 
     let isMutedSelf = false;
     let isRoundOver = false;
 
-    const HIT_THRESHOLD = 110; 
+    // Порог чувствительности снижен для слабых устройств
+    const HIT_THRESHOLD = 75; 
 
     document.getElementById('my-id').innerText = myFourDigits;
 
@@ -243,9 +239,9 @@
 
     peer.on('connection', c => {
       conn = c;
-      myTXFreq = 18500;
-      myRXFreq = 19500;
-      document.getElementById('freq-info').innerText = "18.5 кГц";
+      myTXFreq = 16500;
+      myRXFreq = 17500;
+      document.getElementById('freq-info').innerText = "16.5 кГц (POWER)";
       setupConnection();
     });
 
@@ -257,9 +253,9 @@
       document.getElementById('status').innerText = 'Поиск...';
       conn = peer.connect('lt-game-' + targetDigit, { reliable: true });
       
-      myTXFreq = 19500;
-      myRXFreq = 18500;
-      document.getElementById('freq-info').innerText = "19.5 кГц";
+      myTXFreq = 17500;
+      myRXFreq = 16500;
+      document.getElementById('freq-info').innerText = "17.5 кГц (POWER)";
       setupConnection();
     }
 
@@ -297,7 +293,13 @@
 
       if (!analyser) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+              echoCancellation: false, 
+              noiseSuppression: false, 
+              autoGainControl: false 
+            } 
+          });
           const source = audioCtx.createMediaStreamSource(stream);
           analyser = audioCtx.createAnalyser();
           analyser.fftSize = 2048;
@@ -322,7 +324,7 @@
           const centerIndex = Math.round((myRXFreq / (currentSampleRate / 2)) * bufferLength);
           
           let maxSignal = 0;
-          for (let i = centerIndex - 2; i <= centerIndex + 2; i++) {
+          for (let i = centerIndex - 3; i <= centerIndex + 3; i++) {
             if (dataArray[i] && dataArray[i] > maxSignal) {
               maxSignal = dataArray[i];
             }
@@ -355,7 +357,7 @@
       await initAudio();
       
       currentAmmo--;
-      isChamberLoaded = false; // Патрон израсходован, нужен затвор!
+      isChamberLoaded = false;
       updateAmmoUI();
 
       const fireBtn = document.getElementById('btn-fire-elem');
@@ -366,7 +368,7 @@
       document.getElementById('bolt-status').style.color = "#ff0044";
 
       isMutedSelf = true;
-      setTimeout(() => { isMutedSelf = false; }, 600);
+      setTimeout(() => { isMutedSelf = false; }, 700);
 
       if (navigator.vibrate) navigator.vibrate(80);
 
@@ -374,21 +376,22 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
-        osc.type = 'sine';
+        // Использование прямоугольной волны (square) дает максимальный пробивной урон на слабых динамиках!
+        osc.type = 'square'; 
         osc.frequency.setValueAtTime(myTXFreq, audioCtx.currentTime);
 
-        gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.35);
+        osc.stop(audioCtx.currentTime + 0.4);
       } catch(e) {}
     }
 
-    /* ИНТЕРАКТИВНЫЙ ЗА ТЯГУ AWM (НАЗАД - ВПЕРЕД) */
     const boltHandle = document.getElementById('bolt-handle');
     const boltTrack = document.getElementById('bolt-track');
     let isDragging = false;
@@ -419,14 +422,12 @@
 
       boltHandle.style.left = x + 'px';
 
-      // Оттянул назад
       if (x >= rect.width - 75 && !pulledBack) {
         pulledBack = true;
         playBoltPullSound();
         if (navigator.vibrate) navigator.vibrate(30);
       }
 
-      // Вернул вперед
       if (x <= 15 && pulledBack) {
         pulledBack = false;
         isDragging = false;
@@ -444,7 +445,7 @@
     function endBolt() {
       if (isDragging) {
         isDragging = false;
-        boltHandle.style.left = '5px'; // Возврат на старт
+        boltHandle.style.left = '5px';
       }
     }
 
@@ -552,133 +553,4 @@
       currentAmmo = MAX_AMMO;
       isChamberLoaded = true;
       updateAmmoUI();
-      hideScreens();
-      if (conn && conn.open) {
-        conn.send({ type: 'NEXT_ROUND' });
-      }
-    }
-
-    function resetMatch() {
-      fullReset();
-      if (conn && conn.open) {
-        conn.send({ type: 'RESET_MATCH' });
-      }
-    }
-
-    function fullReset() {
-      myScore = 0;
-      enemyScore = 0;
-      currentAmmo = MAX_AMMO;
-      isChamberLoaded = true;
-      updateAmmoUI();
-      updateScoreUI();
-      hideScreens();
-    }
-
-    function hideScreens() {
-      isRoundOver = false;
-      document.getElementById('btn-fire-elem').classList.remove('disabled');
-      document.getElementById('fire-btn-text').innerText = "💥 ОГОНЬ";
-      document.getElementById('round-dead-screen').style.display = 'none';
-      document.getElementById('round-win-screen').style.display = 'none';
-      document.getElementById('match-end-screen').style.display = 'none';
-    }
-
-    /* Звуковые эффекты затвора AWM */
-    function playBoltPullSound() {
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.08);
-      } catch(e) {}
-    }
-
-    function playBoltPushSound() {
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(500, audioCtx.currentTime + 0.06);
-        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.06);
-      } catch(e) {}
-    }
-
-    function playEmptyClickSound() {
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.05);
-      } catch(e) {}
-    }
-
-    function playReloadSound() {
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-      } catch(e) {}
-    }
-
-    function playLossSound() {
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
-      } catch(e) {}
-    }
-
-    function playWinSound() {
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(350, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.25);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.25);
-      } catch(e) {}
-    }
-  </script>
-</body>
-</html>
+      hideS
