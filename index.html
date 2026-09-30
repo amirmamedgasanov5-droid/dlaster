@@ -2,555 +2,410 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultrasound LaserTag - Power Android Edition</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Shooter & Party</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body, html { width: 100%; height: 100%; overflow: hidden; background: #08080c; color: #fff; }
+    :root {
+      --bg: #0a0b10;
+      --panel: #141622;
+      --accent: #00ffcc;
+      --accent-danger: #ff0055;
+      --text: #ffffff;
+      --text-dim: #8a8d9b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
 
     .app-container {
-      position: absolute; width: 100%; height: 100%;
-      display: grid;
-      grid-template-rows: 60px 1fr;
-      grid-template-columns: 1fr 1fr;
-      padding: 15px 25px;
-      background: radial-gradient(circle at center, #181824 0%, #050508 100%);
-      gap: 15px;
+      width: 100%;
+      max-width: 480px;
+      background: var(--panel);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
     }
 
-    .header-score {
-      grid-column: 1 / -1;
-      display: flex; justify-content: space-between; align-items: center;
-      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 8px 25px; border-radius: 16px; backdrop-filter: blur(10px);
-    }
-    .score-box { display: flex; align-items: center; gap: 10px; }
-    .score-title { font-size: 13px; color: #888; font-weight: bold; }
-    .score-val { font-size: 26px; font-weight: 900; color: #00ff42; text-shadow: 0 0 10px rgba(0,255,66,0.5); }
-    .vs-badge { font-size: 13px; font-weight: bold; color: #ff0044; background: rgba(255,0,68,0.1); padding: 4px 12px; border-radius: 8px; }
-
-    .setup-overlay {
-      position: absolute; top: 75px; left: 50%; transform: translateX(-50%);
-      background: rgba(20, 20, 30, 0.95); padding: 12px 20px; border-radius: 16px;
-      text-align: center; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 10;
-      display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    }
-    .target-select { display: flex; gap: 4px; }
-    .target-btn {
-      padding: 6px 10px; background: #111; border: 1px solid #333; color: #888;
-      border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;
-    }
-    .target-btn.active { background: #00ff42; color: #000; border-color: #00ff42; }
-
-    input.input-code { 
-      width: 90px; padding: 6px; border-radius: 8px; border: none; 
-      text-align: center; font-size: 18px; font-weight: bold; background: #111; color: #00ff42; 
-    }
-    button.btn-connect { 
-      background: #00ff42; color: #000; font-weight: bold; padding: 8px 16px; border: none; 
-      border-radius: 8px; font-size: 13px; cursor: pointer; 
+    /* Верхняя панель: Код приглашения */
+    .invite-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px dashed var(--accent);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .controls-left, .controls-right {
-      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px;
+    .invite-info {
+      display: flex;
+      flex-direction: column;
     }
 
-    .btn-fire {
-      width: 100%; height: 100%; max-height: 220px;
-      background: linear-gradient(135deg, #ff0044, #990022);
-      color: #fff; font-size: 34px; font-weight: 900; letter-spacing: 2px;
-      border-radius: 28px; border: 3px solid #ff4477;
-      box-shadow: 0 0 35px rgba(255, 0, 68, 0.5);
-      cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center;
-      transition: all 0.2s ease;
-    }
-    .btn-fire:active { transform: scale(0.96); background: #ff2255; }
-    .btn-fire.disabled { background: #222; border-color: #444; box-shadow: none; color: #666; cursor: not-allowed; }
-
-    .bolt-container {
-      width: 100%; background: #151520; border: 2px dashed #ffaa00;
-      border-radius: 18px; padding: 10px; text-align: center; position: relative;
-    }
-    .bolt-title { font-size: 11px; color: #ffaa00; font-weight: bold; margin-bottom: 6px; text-transform: uppercase; }
-    .bolt-track {
-      width: 100%; height: 44px; background: #0a0a10; border-radius: 22px;
-      position: relative; overflow: hidden; border: 1px solid #333; display: flex; align-items: center; justify-content: space-between; padding: 0 10px;
-    }
-    .bolt-handle {
-      width: 60px; height: 36px; background: linear-gradient(135deg, #ffaa00, #cc7700);
-      border-radius: 18px; color: #000; font-weight: 900; font-size: 12px;
-      display: flex; justify-content: center; align-items: center; cursor: pointer;
-      position: absolute; left: 5px; transition: transform 0.1s ease; box-shadow: 0 0 10px rgba(255,170,0,0.5);
+    .invite-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
-    .btn-reload {
-      width: 100%; height: 50px;
-      background: linear-gradient(135deg, #333, #111);
-      color: #aaa; font-size: 14px; font-weight: bold;
-      border-radius: 14px; border: 1px solid #444;
-      cursor: pointer; display: flex; justify-content: center; align-items: center;
-      position: relative; overflow: hidden;
+    .invite-code {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: 2px;
     }
 
-    .ammo-card {
-      width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 14px; padding: 8px; text-align: center;
+    .btn-secondary {
+      background: rgba(0, 255, 204, 0.1);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
     }
-    .ammo-title { font-size: 10px; color: #aaa; text-transform: uppercase; }
-    .ammo-count { font-size: 26px; font-weight: 900; color: #ffcc00; }
 
-    .reload-bar {
-      position: absolute; bottom: 0; left: 0; height: 100%; width: 0%;
-      background: rgba(255, 170, 0, 0.4); transition: width 2s linear;
+    .btn-secondary:hover {
+      background: var(--accent);
+      color: var(--bg);
     }
 
-    .game-screen {
-      position: absolute; z-index: 100; top: 0; left: 0; width: 100%; height: 100%;
-      display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-      padding: 20px; backdrop-filter: blur(15px);
+    /* Игровая арена */
+    .game-zone {
+      height: 220px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 14px;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.02);
     }
-    #round-dead-screen { background: rgba(150, 0, 0, 0.92); }
-    #round-win-screen { background: rgba(0, 120, 40, 0.92); }
-    #match-end-screen { background: rgba(10, 10, 15, 0.96); }
 
-    .game-screen h1 { font-size: 42px; font-weight: 900; text-shadow: 0 0 15px rgba(0,0,0,0.8); }
-    .game-screen p { margin-top: 10px; font-size: 20px; opacity: 0.9; }
-    .btn-action { margin-top: 25px; padding: 16px 36px; background: #fff; color: #000; font-size: 20px; font-weight: bold; border-radius: 12px; border: none; cursor: pointer; }
+    .target {
+      width: 90px;
+      height: 90px;
+      background: radial-gradient(circle, var(--accent-danger) 0%, rgba(255,0,85,0.2) 70%);
+      border: 3px solid var(--accent-danger);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 0 20px var(--accent-danger);
+      transition: transform 0.05s ease;
+      position: relative;
+    }
+
+    .target:active {
+      transform: scale(0.92);
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    .stat-val {
+      color: var(--text);
+      font-weight: bold;
+    }
+
+    /* Перегрев */
+    .heat-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .heat-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-danger));
+      transition: width 0.1s linear;
+    }
+
+    /* Главная кнопка выстрела */
+    .btn-shoot {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, #00ffcc 0%, #0099ff 100%);
+      border: none;
+      border-radius: 14px;
+      color: var(--bg);
+      font-size: 18px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(0, 255, 204, 0.3);
+      transition: all 0.1s;
+    }
+
+    .btn-shoot:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 10px rgba(0, 255, 204, 0.3);
+    }
+
+    .btn-shoot:disabled {
+      background: #333645;
+      color: #66697d;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* Всплывающий урон */
+    .damage-pop {
+      position: absolute;
+      color: var(--accent);
+      font-weight: bold;
+      font-size: 20px;
+      pointer-events: none;
+      animation: floatUp 0.6s forwards ease-out;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-40px) scale(1.3); }
+    }
   </style>
 </head>
 <body>
 
-  <div class="app-container">
-    <div class="header-score">
-      <div class="score-box">
-        <div class="score-title">ТЫ:</div>
-        <div class="score-val" id="my-score">0</div>
-      </div>
-      <div class="vs-badge" id="match-target-badge">POWER AWM</div>
-      <div style="font-size: 11px; color: #888;" id="status">Код: <b id="my-id" style="color:#00ff42;">....</b></div>
-      <div class="score-box">
-        <div class="score-title">БРАТ:</div>
-        <div class="score-val" id="enemy-score" style="color:#ff0044;">0</div>
-      </div>
+<div class="app-container">
+  <!-- Блок приглашения -->
+  <div class="invite-card">
+    <div class="invite-info">
+      <span class="invite-label">Код комнаты</span>
+      <span class="invite-code" id="inviteCode">------</span>
     </div>
-
-    <div class="setup-overlay" id="setup-panel">
-      <div class="target-select">
-        <button class="target-btn active" onclick="setMatchLimit(5, this)">5 ПОБЕД</button>
-        <button class="target-btn" onclick="setMatchLimit(10, this)">10 ПОБЕД</button>
-        <button class="target-btn" onclick="setMatchLimit(20, this)">20 ПОБЕД</button>
-      </div>
-      <input type="number" class="input-code" id="target-id" placeholder="1234" pattern="[0-9]*" inputmode="numeric">
-      <button class="btn-connect" onclick="connectToBrother()">ПОДКЛЮЧИТЬСЯ</button>
-    </div>
-
-    <div class="controls-left">
-      <button class="btn-fire" id="btn-fire-elem" onclick="shoot()">
-        <span id="fire-btn-text">💥 ОГОНЬ</span>
-        <span style="font-size: 12px; font-weight: normal; opacity: 0.8; margin-top: 5px;" id="freq-info">Мощный Луч: ---</span>
-      </button>
-    </div>
-
-    <div class="controls-right">
-      <div class="ammo-card">
-        <div class="ammo-title">МАГА3ИН AWM</div>
-        <div class="ammo-count" id="ammo-display">10 / 10</div>
-      </div>
-
-      <div class="bolt-container">
-        <div class="bolt-title" id="bolt-status">ЗАПОЛНИ ПАТРОННИК</div>
-        <div class="bolt-track" id="bolt-track">
-          <span style="font-size: 10px; color: #555;">◀ НАЗАД</span>
-          <span style="font-size: 10px; color: #555;">ВПЕРЕД ▶</span>
-          <div class="bolt-handle" id="bolt-handle">AWM</div>
-        </div>
-      </div>
-
-      <button class="btn-reload" id="btn-reload-elem" onclick="reloadMagazine()">
-        <div class="reload-bar" id="reload-progress"></div>
-        🔄 СМЕНА МАГАЗИНА (2 СЕК)
-      </button>
-    </div>
+    <button class="btn-secondary" id="genInviteBtn">Создать код</button>
   </div>
 
-  <div id="round-dead-screen" class="game-screen">
-    <h1>ТЫ ПОПАЛСЯ! ☠️</h1>
-    <p id="round-dead-sub">Точный снайперский выстрел!</p>
-    <button class="btn-action" onclick="nextRound()">СЛЕДУЮЩИЙ РАУНД</button>
+  <!-- Статистика -->
+  <div class="stats-bar">
+    <div>Очки: <span class="stat-val" id="scoreVal">0</span></div>
+    <div>Комбо: <span class="stat-val" id="comboVal">x1</span></div>
   </div>
 
-  <div id="round-win-screen" class="game-screen">
-    <h1>ТОЧНО В ЦЕЛЬ! 🎯</h1>
-    <p id="round-win-sub">Очко в твою пользу!</p>
-    <button class="btn-action" onclick="nextRound()">СЛЕДУЮЩИЙ РАУНД</button>
+  <!-- Индикатор перегрева оружия -->
+  <div class="heat-container">
+    <div class="heat-bar" id="heatBar"></div>
   </div>
 
-  <div id="match-end-screen" class="game-screen">
-    <h1 id="match-result-title">ПОБЕДА В МАТЧЕ! 🏆</h1>
-    <p id="match-result-sub">Ты разгромил соперника!</p>
-    <button class="btn-action" onclick="resetMatch()">НОВЫЙ МАТЧ</button>
+  <!-- Арена с мишенью -->
+  <div class="game-zone" id="gameZone">
+    <div class="target" id="target"></div>
   </div>
 
-  <script>
-    const myFourDigits = Math.floor(1000 + Math.random() * 9000).toString();
+  <!-- Главная кнопка -->
+  <button class="btn-shoot" id="shootBtn">Стрелять 🔥</button>
+</div>
+
+<script>
+  // --- АУДИО СИНТЕЗАТОР (Web Audio API) ---
+  class SoundEffects {
+    constructor() {
+      this.ctx = null;
+    }
+
+    init() {
+      if (!this.ctx) {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+    }
+
+    playShoot() {
+      this.init();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+      
+      gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+      
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.15);
+    }
+
+    playClick() {
+      this.init();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.08);
+      
+      gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+      
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.08);
+    }
+  }
+
+  const sounds = new SoundEffects();
+
+  // --- СОСТОЯНИЕ ИГРЫ ---
+  let score = 0;
+  let combo = 1;
+  let heat = 0;
+  let isOverheated = false;
+  let lastShotTime = Date.now();
+
+  // DOM Элементы
+  const shootBtn = document.getElementById('shootBtn');
+  const target = document.getElementById('target');
+  const gameZone = document.getElementById('gameZone');
+  const scoreVal = document.getElementById('scoreVal');
+  const comboVal = document.getElementById('comboVal');
+  const heatBar = document.getElementById('heatBar');
+  const inviteCodeEl = document.getElementById('inviteCode');
+  const genInviteBtn = document.getElementById('genInviteBtn');
+
+  // --- ЛОГИКА ВЫСТРЕЛА ---
+  function executeShoot(e) {
+    if (isOverheated) return;
+
+    sounds.playShoot();
+
+    // Расчет комбо (если выстрел сделан быстрей чем за 500мс)
+    const now = Date.now();
+    if (now - lastShotTime < 500) {
+      combo = Math.min(combo + 1, 10);
+    } else {
+      combo = 1;
+    }
+    lastShotTime = now;
+
+    // Очки
+    const points = 10 * combo;
+    score += points;
+
+    // Нагрев пушки
+    heat += 15;
+    if (heat >= 100) {
+      heat = 100;
+      isOverheated = true;
+      shootBtn.disabled = true;
+      shootBtn.innerText = 'ПЕРЕГРЕВ! ❄️';
+    }
+
+    // Визуальный эффект выстрела (цифра)
+    showDamagePop(points, e);
+
+    // Обновление UI
+    updateUI();
+  }
+
+  function showDamagePop(pts, e) {
+    const pop = document.createElement('div');
+    pop.className = 'damage-pop';
+    pop.innerText = `+${pts}`;
+
+    const rect = gameZone.getBoundingClientRect();
+    let x = rect.width / 2;
+    let y = rect.height / 2;
+
+    if (e && e.clientX) {
+      x = e.clientX - rect.left;
+      y = e.clientY - rect.top;
+    }
+
+    pop.style.left = `${x}px`;
+    pop.style.top = `${y}px`;
+
+    gameZone.appendChild(pop);
+    setTimeout(() => pop.remove(), 600);
+  }
+
+  // --- ОХЛАЖДЕНИЕ ОРУЖИЯ ---
+  setInterval(() => {
+    if (heat > 0) {
+      heat -= isOverheated ? 10 : 5;
+      if (heat <= 0) {
+        heat = 0;
+        if (isOverheated) {
+          isOverheated = false;
+          shootBtn.disabled = false;
+          shootBtn.innerText = 'Стрелять 🔥';
+        }
+      }
+      updateUI();
+    }
+  }, 100);
+
+  function updateUI() {
+    scoreVal.innerText = score;
+    comboVal.innerText = `x${combo}`;
+    heatBar.style.width = `${heat}%`;
+  }
+
+  // --- ГЕНЕРАТОР КОДА ПРИГЛАШЕНИЯ ---
+  function generateInviteCode() {
+    sounds.playClick();
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'SKW-';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    inviteCodeEl.innerText = code;
     
-    const peerConfig = {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      }
-    };
+    // Копирование в буфер обмена
+    navigator.clipboard.writeText(code).then(() => {
+      const origText = genInviteBtn.innerText;
+      genInviteBtn.innerText = 'Скопировано!';
+      setTimeout(() => genInviteBtn.innerText = origText, 1500);
+    }).catch(() => {});
+  }
 
-    const peer = new Peer('lt-game-' + myFourDigits, peerConfig);
+  // СЛУШАТЕЛИ СОБЫТИЙ
+  shootBtn.addEventListener('click', (e) => executeShoot(e));
+  target.addEventListener('click', (e) => executeShoot(e));
+  genInviteBtn.addEventListener('click', generateInviteCode);
 
-    let conn = null;
-    let audioCtx = null;
-    let analyser = null;
-
-    // Оптимизированные частоты для слабейших динамиков Андроида
-    let myTXFreq = 16500;
-    let myRXFreq = 17500;
-    
-    let myScore = 0;
-    let enemyScore = 0;
-    let maxWins = 5;
-
-    const MAX_AMMO = 10;
-    let currentAmmo = MAX_AMMO;
-    let isChamberLoaded = true;
-    let isReloading = false;
-
-    let isMutedSelf = false;
-    let isRoundOver = false;
-
-    // Порог чувствительности снижен для слабых устройств
-    const HIT_THRESHOLD = 75; 
-
-    document.getElementById('my-id').innerText = myFourDigits;
-
-    function setMatchLimit(val, btn) {
-      maxWins = val;
-      document.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-
-    peer.on('connection', c => {
-      conn = c;
-      myTXFreq = 16500;
-      myRXFreq = 17500;
-      document.getElementById('freq-info').innerText = "16.5 кГц (POWER)";
-      setupConnection();
-    });
-
-    async function connectToBrother() {
-      await initAudio();
-      const targetDigit = document.getElementById('target-id').value.trim();
-      if (!targetDigit || targetDigit.length !== 4) return alert('Введи 4 цифры!');
-      
-      document.getElementById('status').innerText = 'Поиск...';
-      conn = peer.connect('lt-game-' + targetDigit, { reliable: true });
-      
-      myTXFreq = 17500;
-      myRXFreq = 16500;
-      document.getElementById('freq-info').innerText = "17.5 кГц (POWER)";
-      setupConnection();
-    }
-
-    function setupConnection() {
-      if (!conn) return;
-
-      conn.on('open', () => {
-        document.getElementById('status').innerText = '✅ ПОДКЛЮЧЕНО';
-        document.getElementById('status').style.color = '#00ff42';
-        document.getElementById('setup-panel').style.display = 'none';
-        initAudio();
-        conn.send({ type: 'SYNC_LIMIT', limit: maxWins });
-      });
-
-      conn.on('data', data => {
-        if (data.type === 'I_DIED') {
-          if (!isRoundOver) handleRoundWin();
-        } else if (data.type === 'NEXT_ROUND') {
-          hideScreens();
-        } else if (data.type === 'RESET_MATCH') {
-          fullReset();
-        } else if (data.type === 'SYNC_LIMIT') {
-          maxWins = data.limit;
-        }
-      });
-    }
-
-    async function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
-      }
-
-      if (!analyser) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: { 
-              echoCancellation: false, 
-              noiseSuppression: false, 
-              autoGainControl: false 
-            } 
-          });
-          const source = audioCtx.createMediaStreamSource(stream);
-          analyser = audioCtx.createAnalyser();
-          analyser.fftSize = 2048;
-          source.connect(analyser);
-
-          listenUltrasound();
-        } catch (err) {
-          console.error(err);
-        }
-      }
-    }
-
-    function listenUltrasound() {
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      function check() {
-        if (!isMutedSelf && !isRoundOver && analyser) {
-          analyser.getByteFrequencyData(dataArray);
-          
-          const currentSampleRate = audioCtx.sampleRate;
-          const centerIndex = Math.round((myRXFreq / (currentSampleRate / 2)) * bufferLength);
-          
-          let maxSignal = 0;
-          for (let i = centerIndex - 3; i <= centerIndex + 3; i++) {
-            if (dataArray[i] && dataArray[i] > maxSignal) {
-              maxSignal = dataArray[i];
-            }
-          }
-
-          if (maxSignal > HIT_THRESHOLD) {
-            handleRoundLoss();
-          }
-        }
-        requestAnimationFrame(check);
-      }
-      check();
-    }
-
-    async function shoot() {
-      if (isRoundOver || isReloading) return;
-
-      if (!isChamberLoaded) {
-        playEmptyClickSound();
-        alert('Передерни затвор AWM!');
-        return;
-      }
-
-      if (currentAmmo <= 0) {
-        playEmptyClickSound();
-        alert('Магазин пуст! Нажми СМЕНА МАГАЗИНА.');
-        return;
-      }
-
-      await initAudio();
-      
-      currentAmmo--;
-      isChamberLoaded = false;
-      updateAmmoUI();
-
-      const fireBtn = document.getElementById('btn-fire-elem');
-      const fireText = document.getElementById('fire-btn-text');
-      fireBtn.classList.add('disabled');
-      fireText.innerText = "⚙️ ДЁРГАЙ ЗА ТЯГУ";
-      document.getElementById('bolt-status').innerText = "⚠️ ПОДНИМИ И ДЁРНИ ЗА ТЯГУ AWM!";
-      document.getElementById('bolt-status').style.color = "#ff0044";
-
-      isMutedSelf = true;
-      setTimeout(() => { isMutedSelf = false; }, 700);
-
-      if (navigator.vibrate) navigator.vibrate(80);
-
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-
-        // Использование прямоугольной волны (square) дает максимальный пробивной урон на слабых динамиках!
-        osc.type = 'square'; 
-        osc.frequency.setValueAtTime(myTXFreq, audioCtx.currentTime);
-
-        gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.4);
-      } catch(e) {}
-    }
-
-    const boltHandle = document.getElementById('bolt-handle');
-    const boltTrack = document.getElementById('bolt-track');
-    let isDragging = false;
-    let pulledBack = false;
-
-    boltHandle.addEventListener('touchstart', startBolt);
-    boltHandle.addEventListener('mousedown', startBolt);
-
-    window.addEventListener('touchmove', moveBolt);
-    window.addEventListener('mousemove', moveBolt);
-
-    window.addEventListener('touchend', endBolt);
-    window.addEventListener('mouseup', endBolt);
-
-    function startBolt(e) {
-      if (isChamberLoaded || isReloading || currentAmmo <= 0) return;
-      isDragging = true;
-    }
-
-    function moveBolt(e) {
-      if (!isDragging) return;
-      const rect = boltTrack.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      let x = clientX - rect.left - 30;
-
-      if (x < 5) x = 5;
-      if (x > rect.width - 65) x = rect.width - 65;
-
-      boltHandle.style.left = x + 'px';
-
-      if (x >= rect.width - 75 && !pulledBack) {
-        pulledBack = true;
-        playBoltPullSound();
-        if (navigator.vibrate) navigator.vibrate(30);
-      }
-
-      if (x <= 15 && pulledBack) {
-        pulledBack = false;
-        isDragging = false;
-        isChamberLoaded = true;
-        playBoltPushSound();
-        if (navigator.vibrate) navigator.vibrate([40, 40]);
-
-        document.getElementById('btn-fire-elem').classList.remove('disabled');
-        document.getElementById('fire-btn-text').innerText = "💥 ОГОНЬ";
-        document.getElementById('bolt-status').innerText = "✅ ПАТРОН В ПАТРОННИКЕ!";
-        document.getElementById('bolt-status').style.color = "#00ff42";
-      }
-    }
-
-    function endBolt() {
-      if (isDragging) {
-        isDragging = false;
-        boltHandle.style.left = '5px';
-      }
-    }
-
-    function reloadMagazine() {
-      if (isReloading || currentAmmo === MAX_AMMO || isRoundOver) return;
-
-      isReloading = true;
-      const fireBtn = document.getElementById('btn-fire-elem');
-      const fireText = document.getElementById('fire-btn-text');
-      const progressBar = document.getElementById('reload-progress');
-      
-      fireBtn.classList.add('disabled');
-      fireText.innerText = "🔄 СМЕНА МАГАЗИНА...";
-      progressBar.style.width = '100%';
-
-      playReloadSound();
-      if (navigator.vibrate) navigator.vibrate([100, 100, 200]);
-
-      setTimeout(() => {
-        currentAmmo = MAX_AMMO;
-        isChamberLoaded = true;
-        updateAmmoUI();
-        isReloading = false;
-        fireBtn.classList.remove('disabled');
-        fireText.innerText = "💥 ОГОНЬ";
-        document.getElementById('bolt-status').innerText = "✅ ГОТОВ К БОЮ!";
-        document.getElementById('bolt-status').style.color = "#00ff42";
-
-        progressBar.style.transition = 'none';
-        progressBar.style.width = '0%';
-        setTimeout(() => { progressBar.style.transition = 'width 2s linear'; }, 50);
-      }, 2000);
-    }
-
-    function updateAmmoUI() {
-      document.getElementById('ammo-display').innerText = `${currentAmmo} / ${MAX_AMMO}`;
-      if (currentAmmo === 0) {
-        document.getElementById('ammo-display').style.color = '#ff0044';
-      } else {
-        document.getElementById('ammo-display').style.color = '#ffcc00';
-      }
-    }
-
-    function handleRoundLoss() {
-      if (isRoundOver) return;
-      isRoundOver = true;
-
-      enemyScore++;
-      updateScoreUI();
-
-      if (conn && conn.open) {
-        conn.send({ type: 'I_DIED' });
-      }
-
-      if (enemyScore >= maxWins) {
-        showMatchEnd(false);
-      } else {
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-        playLossSound();
-        document.getElementById('round-dead-screen').style.display = 'flex';
-      }
-    }
-
-    function handleRoundWin() {
-      if (isRoundOver) return;
-      isRoundOver = true;
-
-      myScore++;
-      updateScoreUI();
-
-      if (myScore >= maxWins) {
-        showMatchEnd(true);
-      } else {
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        playWinSound();
-        document.getElementById('round-win-screen').style.display = 'flex';
-      }
-    }
-
-    function updateScoreUI() {
-      document.getElementById('my-score').innerText = myScore;
-      document.getElementById('enemy-score').innerText = enemyScore;
-    }
-
-    function showMatchEnd(isWinner) {
-      const screen = document.getElementById('match-end-screen');
-      const title = document.getElementById('match-result-title');
-      const sub = document.getElementById('match-result-sub');
-
-      if (isWinner) {
-        title.innerText = "ПОБЕДА В МАТЧЕ! 🏆";
-        title.style.color = "#00ff42";
-        sub.innerText = `Ты первым набрал ${maxWins} побед!`;
-        playWinSound();
-      } else {
-        title.innerText = "ПОРАЖЕНИЕ В МАТЧЕ ☠️";
-        title.style.color = "#ff0044";
-        sub.innerText = `Соперник выиграл со счетом ${enemyScore}:${myScore}`;
-        playLossSound();
-      }
-      screen.style.display = 'flex';
-    }
-
-    function nextRound() {
-      currentAmmo = MAX_AMMO;
-      isChamberLoaded = true;
-      updateAmmoUI();
-      hideS
+  // Старт: генерируем базовый код
+  generateInviteCode();
+</script>
+</body>
+</html>
